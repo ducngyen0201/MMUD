@@ -1,14 +1,214 @@
+/* ===============================
+   GLOBAL RESET
+================================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
 body {
-  font-family: sans-serif;
+  background: linear-gradient(135deg, #0f172a, #020617);
+  color: #e5e7eb;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===============================
+   CONTAINER
+================================ */
+.container {
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 16px;
+  padding: 28px 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow:
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ===============================
+   HEADINGS
+================================ */
+h1, h2 {
   text-align: center;
-  padding: 40px;
+  margin-bottom: 16px;
+  font-weight: 600;
 }
 
-#qr-box canvas {
-  margin: 20px auto;
+h1 {
+  font-size: 1.6rem;
 }
 
+h2 {
+  font-size: 1.2rem;
+  color: #93c5fd;
+}
+
+/* ===============================
+   FORM
+================================ */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+label {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+input {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: #e5e7eb;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+/* ===============================
+   BUTTONS
+================================ */
 button {
-  padding: 8px 16px;
-  margin: 5px;
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #020617;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.35);
+}
+
+button.secondary {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #e5e7eb;
+}
+
+button.secondary:hover {
+  background: #020617;
+}
+
+/* ===============================
+   STATUS / ALERT
+================================ */
+.status {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.status.ok {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.status.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* ===============================
+   QR + SESSION
+================================ */
+.qr-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.qr {
+  width: 180px;
+  height: 180px;
+  background: #020617;
+  border: 1px dashed #334155;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.session-id {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  word-break: break-all;
+}
+
+/* ===============================
+   VAULT
+================================ */
+#vault {
+  display: none;
+}
+
+#lock-screen {
+  text-align: center;
+}
+
+.timer {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #facc15;
+}
+
+ul {
+  list-style: none;
+  margin-top: 12px;
+}
+
+li {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+li button {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+/* ===============================
+   MOBILE FRIENDLY
+================================ */
+@media (max-width: 480px) {
+  .container {
+    padding: 22px;
+    border-radius: 14px;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+  }
 }

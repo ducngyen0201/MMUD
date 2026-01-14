@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>VaultChat – Register</title>
+  <link rel="stylesheet" href="../desktop/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>🧠 VaultChat</h1>
+    <h2>Đăng ký tài khoản</h2>
+
+    <form id="registerForm">
+      <label>Username</label>
+      <input id="username" required />
+
+      <label>Password</label>
+      <input id="password" type="password" required />
+
+      <label>MasterKey (không thể khôi phục)</label>
+      <input id="masterKey" type="password" required />
+
+      <button type="submit">Tạo tài khoản</button>
+      <button type="button" class="secondary"
+        onclick="location.href='login.html'">
+        Quay lại đăng nhập
+      </button>
+    </form>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script src="js/register.js"></script>
+</body>
+</html>

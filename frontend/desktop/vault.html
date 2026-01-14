@@ -2,31 +2,32 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
-  <title>Secure Vault</title>
-  <link rel="stylesheet" href="css/style.css" />
+  <title>VaultChat – Vault</title>
+  <link rel="stylesheet" href="../desktop/css/style.css" />
 </head>
 <body>
 
-<h2>🧠 Secure Vault</h2>
+  <!-- LOCK SCREEN -->
+  <div class="container" id="lock-screen">
+    <h1>🔐 Vault Locked</h1>
+    <p>Yêu cầu xác thực để mở dữ liệu</p>
 
-<div id="lock-screen">
-  <h3>🔐 Xác thực để mở Vault</h3>
+    <button onclick="unlockWithMasterKey()">🔑 MasterKey</button>
+    <button class="secondary" onclick="unlockWithWebAuthn()">🖐 WebAuthn</button>
 
-  <p>🔐 Phiên đã được xác thực từ mobile</p>
-  <p id="timer">⏳ 30s</p>
+    <div id="auth-status" class="status"></div>
+  </div>
 
-  <p id="auth-status"></p>
-</div>
+  <!-- VAULT -->
+  <div class="container" id="vault">
+    <h1>📦 Secure Vault</h1>
+    <div class="timer" id="timer">⏳ 30s</div>
 
-<div id="vault" style="display:none;">
-  <p id="timer">⏳ 30s</p>
+    <button onclick="addItem()">➕ Thêm dữ liệu</button>
 
-  <ul id="data-list"></ul>
+    <ul id="data-list"></ul>
+  </div>
 
-  <button onclick="addItem()">➕ Thêm</button>
-  <button onclick="logout()">🚪 Logout</button>
-</div>
-
-<script src="js/vault.js"></script>
+  <script src="js/vault.js"></script>
 </body>
 </html>
