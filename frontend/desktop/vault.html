@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>VaultChat – Vault</title>
+  <link rel="stylesheet" href="../desktop/css/style.css" />
+</head>
+<body>
+
+  <!-- LOCK SCREEN -->
+  <div class="container" id="lock-screen">
+    <h1>🔐 Vault Locked</h1>
+    <p>Yêu cầu xác thực để mở dữ liệu</p>
+
+    <button onclick="unlockWithMasterKey()">🔑 MasterKey</button>
+    <button class="secondary" onclick="unlockWithWebAuthn()">🖐 WebAuthn</button>
+
+    <div id="auth-status" class="status"></div>
+  </div>
+
+  <!-- VAULT -->
+  <div class="container" id="vault">
+    <h1>📦 Secure Vault</h1>
+    <div class="timer" id="timer">⏳ 30s</div>
+
+    <button onclick="addItem()">➕ Thêm dữ liệu</button>
+
+    <ul id="data-list"></ul>
+  </div>
+
+  <script src="js/vault.js"></script>
+</body>
+</html>
