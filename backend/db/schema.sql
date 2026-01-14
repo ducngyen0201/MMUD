@@ -1,0 +1,37 @@
+CREATE TABLE users (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(100) UNIQUE NOT NULL,
+
+    password_hash VARCHAR(255) NOT NULL,
+
+    auth_key_hash VARCHAR(255) NOT NULL,
+    kdf_salt VARBINARY(32) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE encrypted_data (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL,
+
+    ciphertext BLOB NOT NULL,
+    iv VARBINARY(12) NOT NULL,
+    auth_tag VARBINARY(16) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE masterkey_nonce (
+    user_id BIGINT PRIMARY KEY,
+    nonce VARBINARY(32),
+    expires_at TIMESTAMP
+);
+CREATE TABLE qr_sessions (
+    session_id CHAR(64) PRIMARY KEY,
+    user_id BIGINT NULL,
+    status ENUM('PENDING','APPROVED','EXPIRED') DEFAULT 'PENDING',
+    expires_at TIMESTAMP
+);
