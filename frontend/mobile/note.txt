@@ -1,0 +1,2 @@
+Mobile client sử dụng Web Crypto API để sinh HMAC từ MasterKey hoặc WebAuthn để ký challenge.
+MasterKey không bao giờ rời khỏi thiết bị, nonce chỉ dùng một lần và session có timeout, đảm bảo chống replay và MITM.
