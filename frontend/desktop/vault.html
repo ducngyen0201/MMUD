@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Secure Vault</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<h2>🧠 Secure Vault</h2>
+
+<div id="lock-screen">
+  <h3>🔐 Xác thực để mở Vault</h3>
+
+  <p>🔐 Phiên đã được xác thực từ mobile</p>
+  <p id="timer">⏳ 30s</p>
+
+  <p id="auth-status"></p>
+</div>
+
+<div id="vault" style="display:none;">
+  <p id="timer">⏳ 30s</p>
+
+  <ul id="data-list"></ul>
+
+  <button onclick="addItem()">➕ Thêm</button>
+  <button onclick="logout()">🚪 Logout</button>
+</div>
+
+<script src="js/vault.js"></script>
+</body>
+</html>

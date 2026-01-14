@@ -1,0 +1,14 @@
+body {
+  font-family: sans-serif;
+  text-align: center;
+  padding: 40px;
+}
+
+#qr-box canvas {
+  margin: 20px auto;
+}
+
+button {
+  padding: 8px 16px;
+  margin: 5px;
+}
