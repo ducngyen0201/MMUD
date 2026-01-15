@@ -6,102 +6,123 @@
     <title>Két Sắt An Toàn (Zero-Knowledge)</title>
     
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 
     <style>
-        /* Tùy chỉnh riêng cho trang Vault để chia cột */
-        .dashboard-layout {
-            display: grid;
-            grid-template-columns: 1fr 1.5fr; /* Cột trái nhỏ, cột phải to */
-            gap: 20px;
-        }
-
-        /* Responsive: Trên điện thoại thì xếp dọc */
-        @media (max-width: 768px) {
-            .dashboard-layout {
-                grid-template-columns: 1fr;
-            }
-            .dashboard-container {
-                max-width: 100% !important;
-            }
-        }
-
-        /* Ghi đè container mặc định để rộng hơn khi vào Dashboard */
-        .dashboard-container {
+        /* CSS riêng cho trang Vault để hiển thị bảng rộng hơn */
+        .dashboard-card {
+            max-width: 800px !important; /* Rộng hơn card login */
             width: 100%;
-            max-width: 900px; /* Rộng hơn form login thường */
-            background: transparent; /* Trong suốt để nhìn thấy nền */
-            box-shadow: none;
-            padding: 0;
-        }
-        
-        /* Container con bên trong dashboard */
-        .panel {
-            background: rgba(15, 23, 42, 0.95);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .qr-box {
-            display: flex;
-            flex-direction: column;
-            align-items: center; /* Căn giữa theo chiều ngang */
-            justify-content: center; /* Căn giữa theo chiều dọc */
-            text-align: center; /* Căn giữa văn bản con (nếu có) */
-            margin-top: 20px; /* Khoảng cách phía trên */
+            margin: 0 auto;
         }
 
-        /* Container cụ thể cho mã QR */
-        #qrcode {
+        .header-row {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-        /* Đảm bảo hình ảnh QR tự động căn giữa */
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f3f4f6;
         }
 
-        #qrcode img {
-            margin: auto; /* Căn giữa hình ảnh QR trong thẻ chứa nó */
-            display: block; /* Đảm bảo không có khoảng trắng thừa */
-        }
-
-        /* Trạng thái bên dưới QR */
-        #qrStatus {
+        /* Style cho bảng dữ liệu */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
             margin-top: 10px;
-            font-size: 0.9rem;
-            text-align: center;
         }
 
-        /* Ẩn hiện các màn hình */
-        #appContent { display: none; }
+        .data-table th {
+            text-align: left;
+            padding: 12px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .data-table td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #f3f4f6;
+            color: var(--text-main);
+        }
+
+        .badge-info {
+            background-color: #e0f2fe;
+            color: #0284c7;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
-<body>
+
     <div id="lockScreen" class="container">
-        <h1>🔒 Két Sắt</h1>
-        <p style="text-align: center; color: #64748b;">Quét QR để mở khóa & Thêm dữ liệu</p>
-        <div class="qr-box">
-            <canvas id="qrcode" width="250" height="250" style="background: white; display: block;"></canvas>
-    
-            <div id="qrStatus" class="status ok">Đang chờ tạo QR...</div>
+        <div class="qr-card">
+            <h1 style="color: var(--primary-color); margin-bottom: 5px;">🔒 Két Sắt</h1>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.95rem;">
+                Quét mã QR bằng điện thoại để mở khóa
+            </p>
+            
+            <div class="qr-box">
+                <canvas id="qrcode" width="250" height="250"></canvas>
+                
+                <div id="qrStatus" class="status ok" style="margin-top: 20px;">
+                    Đang khởi tạo bảo mật...
+                </div>
+            </div>
+            
+            <p style="margin-top: 20px; font-size: 0.85rem; color: #94a3b8;">
+                ⚠️ Chỉ sử dụng điện thoại đã được xác thực
+            </p>
         </div>
     </div>
 
-    <div id="appContent" class="dashboard-container">
-        <div class="panel d-flex justify-content-between align-items-center mb-3">
-            <h2>🔐 Dữ liệu</h2>
-            <button id="btnLogout" class="secondary">Đăng xuất</button>
-        </div>
-
-        <div class="panel">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3>Danh sách mật khẩu</h3>
-                <span class="badge bg-primary">📱 Dùng điện thoại để thêm</span>
+    <div id="vaultUI" class="container hidden">
+        <div class="qr-card dashboard-card">
+            
+            <div class="header-row">
+                <div>
+                    <h2 style="margin: 0; color: var(--text-main);">🔐 Dữ liệu mật khẩu</h2>
+                    <span class="badge-info">Trạng thái: Đã giải mã</span>
+                </div>
+                <button onclick="location.reload()" class="btn btn-outline" style="font-size: 0.9rem; padding: 8px 15px;">
+                    Đăng xuất
+                </button>
             </div>
-            <ul id="dataList"></ul>
+
+            <div style="text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; font-size: 1.1rem;">Danh sách</h3>
+                    <div style="font-size: 0.9rem; color: var(--primary-color);">
+                        📱 Hãy thêm mới từ điện thoại
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Tên / Domain</th>
+                                <th>Mật khẩu</th>
+                                <th style="width: 80px;">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody id="passTableBody">
+                            <tr>
+                                <td colspan="4" style="text-align: center; padding: 20px; color: #94a3b8;">
+                                    Đang tải dữ liệu...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </div>
 

@@ -7,43 +7,38 @@ exports.initWSS = (httpServer) => {
   });
 
   io.on("connection", (socket) => {
+    // Log nhẹ để biết có người vào
+    // console.log(`🔌 Client connected: ${socket.id}`);
+
     // 1. Desktop tạo phòng
-    socket.on("desktop_join", (sessionId) => {
-      socket.join(sessionId);
-      console.log(`💻 Desktop joined: ${sessionId}`);
+    socket.on("desktop_join", (sid) => {
+      socket.join(sid);
     });
 
-    // 👇 2. QUAN TRỌNG: Mobile báo danh
-    socket.on("mobile_joined", (sessionId) => {
-      console.log(`📱 Mobile joined: ${sessionId}`);
-      socket.join(sessionId);
-      // Báo cho Desktop biết là Mobile đã vào
-      io.to(sessionId).emit("notify_mobile_connected"); 
+    // 2. Mobile báo danh -> Báo cho Desktop
+    socket.on("mobile_joined", (sid) => {
+      socket.join(sid);
+      io.to(sid).emit("notify_mobile_connected"); 
     });
 
-    // 👇 3. QUAN TRỌNG: Desktop gửi Public Key trả lời
+    // 3. Desktop gửi Key Public
     socket.on("desktop_send_pubkey", (data) => {
-      const { sessionId, pubKey } = data;
-      // Gửi Key cho Mobile
-      socket.to(sessionId).emit("receive_desktop_pub", pubKey);
+      socket.to(data.sessionId).emit("receive_desktop_pub", data.pubKey);
     });
 
-    // 4. Mobile gửi Key mở khóa (như cũ)
+    // 4. Mobile gửi Master Key (đã mã hóa)
     socket.on("mobile_send_key", (data) => {
-      const { sessionId, encryptedKeyPkg } = data;
-      io.to(sessionId).emit("receive_key", encryptedKeyPkg);
+      io.to(data.sessionId).emit("receive_key", data.encryptedKeyPkg);
     });
 
-    // 5. Desktop gửi Salt (như cũ)
+    // 5. Desktop gửi Salt
     socket.on("desktop_send_salt", (data) => {
-      const { sessionId, salt } = data;
-      io.to(sessionId).emit("receive_salt", salt);
+      io.to(data.sessionId).emit("receive_salt", data.salt);
     });
 
-    // 6. Mobile gửi Data thêm mới (như cũ)
+    // 6. Mobile gửi dữ liệu thêm mới
     socket.on("mobile_add_entry", (data) => {
-      const { sessionId, entryData } = data;
-      io.to(sessionId).emit("receive_new_entry", entryData);
+      io.to(data.sessionId).emit("receive_new_entry", data.entryData);
     });
   });
 };

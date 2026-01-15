@@ -2,48 +2,62 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mobile Input</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/mobile.css">
+    
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-
-    <style>
-        body { background-color: #121212; color: white; padding: 20px; }
-        .card { background-color: #1e1e1e; border: 1px solid #333; color: white; }
-        .form-control { background-color: #2d2d2d; border-color: #444; color: white; }
-        .form-control:focus { background-color: #2d2d2d; color: white; border-color: #0d6efd; }
-        .hidden { display: none !important; }
-    </style>
 </head>
 <body>
-    <div class="container" style="max-width: 500px;">
-        <h4 class="text-center mb-4 text-primary">📱 Mobile Input</h4>
 
-        <div id="screenLogin" class="card p-3">
-            <p class="small text-muted">Đã nhận diện phiên làm việc từ QR.</p>
-            <p>Vui lòng nhập Master Key để kết nối:</p>
-            
-            <input type="password" id="inpMobileKey" class="form-control mb-3" placeholder="Master Key...">
-            
-            <button id="btnLoginMobile" class="btn btn-primary w-100 fw-bold">KẾT NỐI NGAY</button>
+    <div id="screenLogin" class="mobile-card">
+        <div class="logo-area">
+            <h2>📱 Remote Key</h2>
+            <p>Nhập Master Key để kết nối với PC</p>
         </div>
 
-        <div id="screenControl" class="hidden">
-            <div class="alert alert-success text-center">✅ Đã kết nối Desktop</div>
-            
-            <div class="card p-3">
-                <h5 class="text-warning mb-3">Thêm Mật Khẩu</h5>
-                
-                <input type="text" id="mDomain" class="form-control mb-3" placeholder="Tên gợi nhớ (VD: Gmail)">
-                <input type="text" id="mPass" class="form-control mb-3" placeholder="Mật khẩu cần lưu">
-                
-                <button id="btnMobileAdd" class="btn btn-warning w-100 fw-bold">
-                    Mã hóa & Gửi
-                </button>
-            </div>
+        <div class="form-group">
+            <label for="inpMobileKey">Master Key</label>
+            <input type="password" id="inpMobileKey" class="form-control" placeholder="Nhập khóa..." autocomplete="off">
+        </div>
+
+        <button id="btnLoginMobile" class="btn btn-success" disabled>
+            Đang tìm máy tính...
+        </button>
+        
+        <p style="margin-top: 20px; font-size: 0.8rem; color: #6b7280;">
+            Đảm bảo điện thoại và máy tính chung mạng Wifi
+        </p>
+    </div>
+
+    <div id="screenControl" class="mobile-card hidden">
+        <div class="logo-area">
+            <h2 style="color: #059669;">✅ Đã kết nối</h2>
+            <p>Dữ liệu sẽ được mã hóa trước khi gửi</p>
+        </div>
+
+        <div class="form-group">
+            <label for="mDomain">Tên gợi nhớ</label>
+            <input type="text" id="mDomain" class="form-control" placeholder="VD: Facebook, Gmail...">
+        </div>
+
+        <div class="form-group">
+            <label for="mPass">Mật khẩu cần lưu</label>
+            <input type="text" id="mPass" class="form-control" placeholder="Nhập mật khẩu...">
+        </div>
+
+        <button id="btnMobileAdd" class="btn btn-success">
+            🔒 Mã hóa & Gửi đi
+        </button>
+
+        <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
+             <p style="font-size: 0.8rem; color: #6b7280;">
+                Mẹo: Bạn có thể nhập liên tục nhiều mật khẩu.
+            </p>
         </div>
     </div>
-    
+
     <script type="module" src="js/mobile.js"></script>
 </body>
 </html>
