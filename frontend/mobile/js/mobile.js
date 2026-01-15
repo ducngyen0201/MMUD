@@ -1,118 +1,170 @@
-import { deriveSharedKey, encryptData, importKeyJWK } from '../desktop/js/crypto.js';
+import { deriveSharedKey, encryptData, importKeyJWK, deriveKeys } from '../../desktop/js/crypto.js';
 
-// 👇 QUAN TRỌNG: Thay bằng IP máy tính của bạn
-const BACKEND_IP = "192.168.1.10"; 
-const socket = io(`http://${BACKEND_IP}:3000`);
+// Vì bạn dùng cáp USB giả lập, ta dùng localhost
+const SOCKET_URL = "https://192.168.1.128:3000"; 
+const socket = io(SOCKET_URL);
 
-let masterKeyCache = localStorage.getItem('mobile_master_key'); // Lưu key vào bộ nhớ tạm
-const inpKey = document.getElementById('inpMobileKey');
+// Các biến trạng thái
+let activeSessionId = null;   // ID phòng (lấy từ QR)
+let desktopPubKey = null;     // Khóa công khai của Desktop (nhận qua Socket)
+let mobileEncryptKey = null;  // Khóa dùng để mã hóa dữ liệu (tính từ Salt)
+let tempMasterKey = null;     // Lưu tạm Master Key để chờ Salt
 
-// Tự động điền key nếu đã từng đăng nhập
-if (masterKeyCache) {
-    inpKey.value = masterKeyCache;
-}
-
-// 1. KIỂM TRA XEM CÓ DỮ LIỆU TỪ QR (LINK) KHÔNG?
-window.addEventListener('load', async () => {
-    // URL sẽ có dạng: mobile.html#data=eyJ...
-    const hash = window.location.hash;
-    
-    if (hash && hash.startsWith('#data=')) {
-        // Lấy phần mã hóa sau dấu =
-        const base64Data = hash.substring(6); 
-        
+// ==========================================
+// 1. TỰ ĐỘNG CHẠY KHI TRANG WEB VỪA MỞ
+// ==========================================
+window.onload = () => {
+    // Kiểm tra xem URL có chứa ID phiên không
+    // Link dạng: .../mobile.html#sid=bec34...
+    if (window.location.hash.includes("#sid=")) {
         try {
-            const jsonString = atob(base64Data);
-            const qrData = JSON.parse(jsonString);
+            // Lấy ID từ URL
+            activeSessionId = window.location.hash.split("#sid=")[1];
+            console.log("🔗 Đã lấy được Session ID:", activeSessionId);
             
-            console.log("Nhận được lệnh từ Desktop:", qrData);
-            
-            // Nếu Mobile chưa đăng nhập -> Bắt đăng nhập trước
-            if (!masterKeyCache) {
-                alert("Vui lòng nhập Master Key trên điện thoại trước!");
-                document.getElementById('screenLogin').classList.remove('hidden');
-                return;
-            }
+            // Xóa hash trên thanh địa chỉ cho đẹp & bảo mật
+            history.replaceState(null, null, ' '); 
 
-            // Nếu đã có Key -> Hỏi xác thực luôn
-            handleApproveSequence(qrData);
+            socket.emit("mobile_joined", activeSessionId);
+
+            // Hiện thông báo chờ
+            document.getElementById('btnLoginMobile').innerText = "Đang chờ Desktop phản hồi...";
+            document.getElementById('btnLoginMobile').disabled = true;
 
         } catch (e) {
-            alert("Link QR lỗi: " + e.message);
+            alert("Đường dẫn không hợp lệ!");
         }
     } else {
-        // Không có link -> Hiện màn hình đăng nhập thường
-        document.getElementById('screenLogin').classList.remove('hidden');
+        // Nếu không có ID
+        alert("Vui lòng quét mã QR trên máy tính để truy cập!");
+        document.body.innerHTML = `
+            <div style="text-align:center; color:white; margin-top:50px;">
+                <h3>⛔ Lỗi truy cập</h3>
+                <p>Thiếu Session ID. Hãy quét lại QR trên Desktop.</p>
+            </div>`;
+    }
+};
+
+// ==========================================
+// 2. LẮNG NGHE SỰ KIỆN TỪ SOCKET
+// ==========================================
+
+// A. Nhận Public Key từ Desktop (Ngay sau khi báo danh)
+socket.on("receive_desktop_pub", (key) => {
+    console.log("🔑 Đã nhận Public Key từ Desktop!");
+    desktopPubKey = key;
+    
+    // Mở khóa nút bấm
+    const btn = document.getElementById('btnLoginMobile');
+    btn.innerText = "KẾT NỐI NGAY";
+    btn.className = "btn btn-success w-100 fw-bold";
+    btn.disabled = false;
+});
+
+// B. Nhận Salt từ Desktop (Sau khi gửi Master Key thành công)
+socket.on("receive_salt", async (salt) => {
+    console.log("🧂 Đã nhận Salt:", salt);
+    
+    if (tempMasterKey) {
+        // Tính toán Key mã hóa dữ liệu (Derive Key)
+        // Mobile tự tính -> Desktop không bao giờ biết Master Key gốc
+        const keys = await deriveKeys(tempMasterKey, salt);
+        mobileEncryptKey = keys.encryptKey;
+        
+        // Xóa Key gốc khỏi RAM ngay lập tức để bảo mật
+        tempMasterKey = null; 
+        console.log("✅ Đã tạo Mobile Encrypt Key thành công!");
     }
 });
 
-// 2. NÚT ĐĂNG NHẬP TRÊN MOBILE
-document.getElementById('btnLoginMobile').addEventListener('click', () => {
-    const key = inpKey.value;
-    if (!key) return alert("Nhập Key đi bạn ơi");
-
-    // Lưu lại dùng cho lần sau
-    localStorage.setItem('mobile_master_key', key);
-    masterKeyCache = key;
+// ==========================================
+// 3. XỬ LÝ NÚT BẤM "KẾT NỐI" (GỬI KEY)
+// ==========================================
+document.getElementById('btnLoginMobile').addEventListener('click', async () => {
+    const masterKey = document.getElementById('inpMobileKey').value;
     
-    // Nếu đang có hash trên URL (nghĩa là vừa quét xong mới đăng nhập) -> Xử lý luôn
-    if (window.location.hash.includes('#data=')) {
-        window.location.reload(); // Reload để chạy logic ở trên
-    } else {
-        alert("Đã lưu Key! Giờ hãy dùng Camera thường quét QR trên Desktop.");
-    }
-});
+    // Validate
+    if (!masterKey) return alert("Vui lòng nhập Master Key!");
+    if (!activeSessionId) return alert("Lỗi phiên làm việc. Hãy quét lại QR.");
+    if (!desktopPubKey) return alert("Chưa kết nối được với Desktop (Thiếu PubKey).");
 
-// 3. XỬ LÝ PHÊ DUYỆT
-async function handleApproveSequence(qrData) {
-    // Ẩn Login, Hiện thông báo
-    document.getElementById('screenLogin').classList.add('hidden');
-    document.getElementById('screenScan').classList.remove('hidden'); // Bạn có thể đổi tên div này thành screenApprove
-    document.getElementById('scanResult').textContent = `Đang kết nối tới Desktop...`;
-    document.getElementById('reader').style.display = 'none'; // Không cần camera nữa
-    document.getElementById('btnStopScan').style.display = 'none';
-
-    // Hỏi xác nhận
-    const userConfirm = confirm(`Bạn có muốn đăng nhập trên Desktop không?\nSession ID: ${qrData.sid.substring(0,4)}...`);
-    
-    if (userConfirm) {
-        await sendKeyToDesktop(qrData);
-    } else {
-        window.location.href = window.location.pathname; // Xóa hash
-    }
-}
-
-// 4. GỬI KEY (Logic cũ, chỉ sửa phần alert)
-async function sendKeyToDesktop(qrData) {
-    document.getElementById('scanResult').textContent = "Đang mã hóa & gửi...";
     try {
-        const desktopPub = await importKeyJWK(qrData.pub);
+        // 1. Tạo cặp khóa ECDH tạm thời cho Mobile
         const mobileKeyPair = await window.crypto.subtle.generateKey(
-            { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey", "deriveBits"]
+            { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]
         );
-        const sharedKey = await deriveSharedKey(mobileKeyPair.privateKey, desktopPub);
-        const encryptedData = await encryptData(masterKeyCache, sharedKey);
+        
+        // 2. Tính Shared Key (Khóa bí mật chung)
+        const desktopKeyObj = await importKeyJWK(desktopPubKey);
+        const sharedKey = await deriveSharedKey(mobileKeyPair.privateKey, desktopKeyObj);
+        
+        // 3. Mã hóa Master Key bằng Shared Key
+        const encryptedData = await encryptData(masterKey, sharedKey);
+        
+        // 4. Xuất Public Key của Mobile để gửi đi
         const mobilePubJWK = await window.crypto.subtle.exportKey("jwk", mobileKeyPair.publicKey);
-
-        const payload = {
-            sessionId: qrData.sid,
+        
+        // 5. Gửi gói tin sang Desktop
+        socket.emit("mobile_send_key", {
+            sessionId: activeSessionId,
             encryptedKeyPkg: {
                 iv: encryptedData.iv,
                 ciphertext: encryptedData.ciphertext,
                 auth_tag: encryptedData.auth_tag,
                 mobilePub: mobilePubJWK
             }
-        };
+        });
 
-        socket.emit("mobile_send_key", payload);
-        
-        document.getElementById('scanResult').innerHTML = `<h3 class="text-success">✅ Thành công!</h3><p>Desktop đã được mở khóa.</p>`;
-        
-        // Xóa hash để tránh refresh lại bị gửi tiếp
-        history.pushState("", document.title, window.location.pathname);
+        // 6. Lưu tạm Master Key (để lát nữa nhận Salt thì dùng)
+        tempMasterKey = masterKey;
 
-    } catch (err) {
-        console.error(err);
-        alert("Lỗi gửi dữ liệu: " + err.message);
+        // 7. Chuyển màn hình
+        document.getElementById('screenLogin').classList.add('hidden');
+        document.getElementById('screenControl').classList.remove('hidden');
+
+    } catch (e) {
+        console.error(e);
+        alert("Lỗi kết nối: " + e.message);
     }
-}
+});
+
+// ==========================================
+// 4. XỬ LÝ NÚT "THÊM DỮ LIỆU"
+// ==========================================
+document.getElementById('btnMobileAdd').addEventListener('click', async () => {
+    // Kiểm tra xem đã có Key mã hóa chưa
+    if (!mobileEncryptKey) {
+        return alert("Chưa nhận được dữ liệu bảo mật (Salt) từ Desktop. Vui lòng đợi 1-2 giây.");
+    }
+
+    const domain = document.getElementById('mDomain').value;
+    const pass = document.getElementById('mPass').value;
+
+    if (!domain || !pass) return alert("Vui lòng nhập đủ thông tin!");
+
+    try {
+        // 1. Mã hóa mật khẩu (Client-side Encryption)
+        const encryptedData = await encryptData(pass, mobileEncryptKey);
+
+        // 2. Gửi sang Desktop (Desktop chỉ việc lưu, không đọc được)
+        socket.emit("mobile_add_entry", {
+            sessionId: activeSessionId,
+            entryData: {
+                domain: domain,
+                ciphertext: encryptedData.ciphertext,
+                iv: encryptedData.iv,
+                auth_tag: encryptedData.auth_tag
+            }
+        });
+
+        // 3. Reset Form
+        alert("Đã gửi sang Desktop!");
+        document.getElementById('mDomain').value = '';
+        document.getElementById('mPass').value = '';
+        document.getElementById('mDomain').focus();
+
+    } catch (e) {
+        console.error(e);
+        alert("Lỗi mã hóa: " + e.message);
+    }
+});

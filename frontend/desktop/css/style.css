@@ -22,15 +22,21 @@ body {
    CONTAINER (Khung chính)
 ================================ */
 .container {
-  background: #ffffff; /* Nền trắng */
+  background: #ffffff;
   border-radius: 16px;
   padding: 32px;
   width: 100%;
-  max-width: 420px;
-  /* Đổ bóng mềm mại để nổi bật trên nền sáng */
+  max-width: 420px; /* Giữ khung nhỏ gọn */
+  
+  /* Đổ bóng */
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 
               0 4px 6px rgba(0, 0, 0, 0.03);
   border: 1px solid #e2e8f0;
+
+  display: flex;     /* Bắt buộc dùng Flex */
+  flex-direction: column !important; /* Bắt buộc xếp dọc (Trên xuống dưới) */
+  align-items: stretch;          /* Kéo giãn các phần tử con cho đều */
+  margin: auto;                  /* Căn giữa màn hình */
 }
 
 /* ===============================
@@ -146,7 +152,7 @@ button.secondary:hover {
 }
 
 /* ===============================
-   QR CODE SECTION (ĐÃ SỬA)
+   QR CODE SECTION
 ================================ */
 .qr-box {
   display: flex;
@@ -154,17 +160,18 @@ button.secondary:hover {
   align-items: center;
   justify-content: center;
   gap: 15px;
+  
   margin-top: 20px;
   padding: 20px;
   background: #f8fafc;
   border-radius: 12px;
   border: 1px dashed #cbd5e1;
   
-  /* Quan trọng: Cho phép khung này to ra nếu QR to */
   width: 100%; 
-  max-width: 300px; /* Giới hạn độ rộng tối đa cho đẹp */
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 300px;
+  
+  /* Căn giữa khối này trong container */
+  align-self: center; 
 }
 
 .qr {
@@ -279,4 +286,12 @@ li button {
     flex-direction: column;
     justify-content: center;
   }
+}
+
+canvas#qrcode {
+    display: block !important; /* Đảm bảo nó luôn hiện */
+    margin: 0 auto;            /* Căn giữa */
+    width: 250px;              /* Kích thước hiển thị */
+    height: 250px;
+    background: white;         /* Nền trắng để dễ quét */
 }
