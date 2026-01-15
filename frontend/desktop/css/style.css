@@ -9,8 +9,9 @@
 }
 
 body {
-  background: linear-gradient(135deg, #0f172a, #020617);
-  color: #e5e7eb;
+  /* Nền sáng: Xám xanh nhẹ nhàng */
+  background: linear-gradient(135deg, #f0f2f5 0%, #e2e8f0 100%);
+  color: #1e293b; /* Chữ màu tối */
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -18,17 +19,18 @@ body {
 }
 
 /* ===============================
-   CONTAINER
+   CONTAINER (Khung chính)
 ================================ */
 .container {
-  background: rgba(15, 23, 42, 0.95);
+  background: #ffffff; /* Nền trắng */
   border-radius: 16px;
-  padding: 28px 32px;
+  padding: 32px;
   width: 100%;
   max-width: 420px;
-  box-shadow:
-    0 20px 40px rgba(0, 0, 0, 0.6),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  /* Đổ bóng mềm mại để nổi bật trên nền sáng */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 
+              0 4px 6px rgba(0, 0, 0, 0.03);
+  border: 1px solid #e2e8f0;
 }
 
 /* ===============================
@@ -37,76 +39,86 @@ body {
 h1, h2 {
   text-align: center;
   margin-bottom: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0f172a; /* Chữ đen đậm */
 }
 
-h1 {
-  font-size: 1.6rem;
-}
-
-h2 {
-  font-size: 1.2rem;
-  color: #93c5fd;
-}
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; color: #3b82f6; /* Màu xanh điểm nhấn */ }
+h3 { font-size: 1.1rem; color: #334155; margin-bottom: 15px; }
 
 /* ===============================
-   FORM
+   FORM ELEMENTS
 ================================ */
 form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 label {
   font-size: 0.85rem;
-  color: #9ca3af;
+  font-weight: 600;
+  color: #64748b; /* Xám trung tính */
+  margin-bottom: 4px;
 }
 
 input {
-  background: #020617;
-  border: 1px solid #1e293b;
+  background: #f8fafc; /* Nền input xám rất nhạt */
+  border: 1px solid #cbd5e1;
   border-radius: 10px;
   padding: 12px 14px;
-  color: #e5e7eb;
+  color: #0f172a;
   font-size: 0.95rem;
   outline: none;
-  transition: border 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
 }
 
 input:focus {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+  background: #ffffff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+input::placeholder {
+  color: #94a3b8;
 }
 
 /* ===============================
    BUTTONS
 ================================ */
 button {
-  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 12px;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #020617;
+  color: #ffffff;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.1s, box-shadow 0.2s;
 }
 
 button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+button:active {
+  transform: translateY(0);
 }
 
 button.secondary {
-  background: transparent;
-  border: 1px solid #334155;
-  color: #e5e7eb;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
 }
 
 button.secondary:hover {
-  background: #020617;
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+  box-shadow: none;
 }
 
 /* ===============================
@@ -114,101 +126,157 @@ button.secondary:hover {
 ================================ */
 .status {
   margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 8px;
   font-size: 0.85rem;
   text-align: center;
+  font-weight: 500;
 }
 
 .status.ok {
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
 .status.error {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 /* ===============================
-   QR + SESSION
+   QR CODE SECTION (ĐÃ SỬA)
 ================================ */
 .qr-box {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-top: 16px;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  
+  /* Quan trọng: Cho phép khung này to ra nếu QR to */
+  width: 100%; 
+  max-width: 300px; /* Giới hạn độ rộng tối đa cho đẹp */
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .qr {
-  width: 180px;
-  height: 180px;
-  background: #020617;
-  border: 1px dashed #334155;
-  border-radius: 14px;
+  /* Xóa width/height cố định 180px cũ đi */
+  width: auto; 
+  height: auto;
+  min-height: 200px; /* Chiều cao tối thiểu để không bị giật layout */
+  
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
-  font-size: 0.85rem;
+  
+  background: #ffffff;
+  padding: 10px; /* Tạo viền trắng xung quanh QR */
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  
+  /* Quan trọng: Không cho phép ẩn nội dung thừa */
+  overflow: visible; 
 }
 
-.session-id {
-  font-size: 0.75rem;
-  color: #94a3b8;
-  word-break: break-all;
+/* Can thiệp sâu vào thẻ img do thư viện tạo ra */
+#qrcode img {
+    max-width: 100% !important; /* Đảm bảo không to quá khổ màn hình */
+    height: auto !important;
+    margin: 0 auto !important; /* Căn giữa tuyệt đối */
+    display: block !important;
+}
+
+#qrStatus {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #475569;
+    text-align: center;
+    background: #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 20px;
 }
 
 /* ===============================
-   VAULT
+   DASHBOARD / VAULT
 ================================ */
-#vault {
-  display: none;
+.dashboard-container {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
-#lock-screen {
-  text-align: center;
+/* Các thẻ panel con (Card) trong dashboard */
+.panel {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
 }
 
-.timer {
-  margin-top: 10px;
-  font-size: 0.85rem;
-  color: #facc15;
-}
-
+/* Danh sách mật khẩu */
 ul {
   list-style: none;
   margin-top: 12px;
+  padding: 0;
 }
 
 li {
-  background: #020617;
-  border: 1px solid #1e293b;
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
   margin-bottom: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: background 0.2s;
+}
+
+li:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+li strong {
+    color: #0f172a;
+    font-weight: 600;
 }
 
 li button {
-  padding: 6px 10px;
-  font-size: 0.8rem;
-  border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    width: auto;
+}
+
+.timer {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.85rem;
+    color: #d97706; /* Màu cam đậm */
+    font-weight: 500;
 }
 
 /* ===============================
-   MOBILE FRIENDLY
+   MOBILE RESPONSIVE
 ================================ */
 @media (max-width: 480px) {
   .container {
-    padding: 22px;
-    border-radius: 14px;
-  }
-
-  h1 {
-    font-size: 1.4rem;
+    padding: 20px;
+    border-radius: 0;
+    min-height: 100vh;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }

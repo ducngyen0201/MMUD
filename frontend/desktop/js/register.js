@@ -1,106 +1,80 @@
-const form = document.getElementById("registerForm");
-const statusEl = document.getElementById("status");
+import { API_URL } from './config.js';
+import { generateSalt, deriveKeys, hex2buf, buf2base64 } from './crypto.js';
 
-/* ===== CRYPTO HELPERS ===== */
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // 1. Lấy dữ liệu từ Form
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;   // Mật khẩu đăng nhập
+    const masterKey = document.getElementById('masterKey').value; // Master Key (Két sắt)
 
-async function deriveKeys(masterKey, salt) {
-  const enc = new TextEncoder();
+    if (!username || !password || !masterKey) {
+        return alert("Vui lòng điền đầy đủ thông tin!");
+    }
 
-  const baseKey = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(masterKey),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
+    // Disable nút để tránh bấm nhiều lần
+    const btnSubmit = e.target.querySelector('button');
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = "Đang xử lý...";
 
-  const rootBits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: enc.encode(salt),
-      iterations: 100000,
-      hash: "SHA-256"
-    },
-    baseKey,
-    256
-  );
+    try {
+        console.log("🚀 Bắt đầu tạo tài khoản...");
 
-  return {
-    authKey: await hkdf(rootBits, "auth"),
-    encryptKey: await hkdf(rootBits, "encrypt")
-  };
-}
+        // 2. Tạo Salt ngẫu nhiên (dạng Hex để tính toán client-side)
+        const saltHex = generateSalt(); 
+        
+        // 3. Tính toán Key từ MasterKey
+        // Hàm deriveKeys trả về: { encryptKey, authKey, authVerifier }
+        // Lưu ý: authVerifier chính là Hash(AuthKey)
+        const keys = await deriveKeys(masterKey, saltHex);
 
-async function hkdf(keyBits, info) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBits,
-    "HKDF",
-    false,
-    ["deriveBits"]
-  );
+        if (!keys.authVerifier) {
+            throw new Error("Hàm deriveKeys trong crypto.js chưa trả về authVerifier!");
+        }
 
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: new Uint8Array([]),
-      info: new TextEncoder().encode(info)
-    },
-    key,
-    256
-  );
+        // 4. Chuẩn bị Salt để gửi lên Server (Chuyển Hex -> Base64 cho gọn DB)
+        // Backend sẽ lưu chuỗi Base64 này vào cột kdf_salt
+        const saltBuffer = hex2buf(saltHex);
+        const saltBase64 = buf2base64(saltBuffer);
+        console.log("📝 [REGISTER] AuthKey gửi lên:", keys.authKey);
+        // 5. Đóng gói dữ liệu (Payload)
+        const payload = {
+            username: username,
+            
+            // Backend sẽ lấy passwordHash này đem đi Argon2 lần nữa rồi mới lưu
+            passwordHash: password, 
+            
+            // Đây là cái Server cần lưu để xác thực (Thay vì lưu MasterKey)
+            authKeyHash: keys.authKey, 
+            
+            // Salt để sau này đăng nhập trả lại cho Client tính toán
+            kdfSalt: saltBase64 
+        };
 
-  return bits;
-}
+        // 6. Gửi Request đăng ký
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-async function sha256(buf) {
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  return btoa(String.fromCharCode(...new Uint8Array(hash)));
-}
+        const data = await response.json();
 
-/* ===== REGISTER FLOW ===== */
+        if (response.ok) {
+            alert('✅ Đăng ký thành công!');
+            window.location.href = 'login.html';
+        } else {
+            console.error("Lỗi Server:", data);
+            alert('❌ Lỗi: ' + (data.error || 'Đăng ký thất bại'));
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = "Đăng ký";
+        }
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value;
-  const masterKey = document.getElementById("masterKey").value;
-
-  statusEl.textContent = "⏳ Đang tạo tài khoản...";
-
-  try {
-    // 1. Tạo salt cho MasterKey
-    const salt = crypto.randomUUID();
-
-    // 2. Derive AuthKey / EncryptKey
-    const { authKey, encryptKey } = await deriveKeys(masterKey, salt);
-
-    // 3. Hash AuthKey → gửi server
-    const authKeyHash = await sha256(authKey);
-
-    // (EncryptKey KHÔNG gửi, chỉ lưu client khi cần)
-
-    // 4. Gửi dữ liệu lên server
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username,
-        password,       // ✅ plaintext
-        kdf_salt: salt,
-        auth_key_hash: authKeyHash
-      })
-    });
-
-    if (!res.ok) throw new Error("Register failed");
-
-    statusEl.textContent = "✅ Đăng ký thành công";
-    form.reset();
-
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = "❌ Đăng ký thất bại";
-  }
+    } catch (err) {
+        console.error("Lỗi Client:", err);
+        alert('❌ Lỗi xử lý mã hóa: ' + err.message);
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = "Đăng ký";
+    }
 });

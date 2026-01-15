@@ -1,33 +1,33 @@
-require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
+const http = require("http");
+const path = require("path");
+const ws = require("./ws");
 
-const authRoutes = require("./routes/auth");
+require("dotenv").config();
 
 const app = express();
+const server = http.createServer(app); // Tạo server HTTP
+
+app.use(cors());
 app.use(express.json());
-const masterkeyRoutes = require("./routes/masterkey");
-app.use("/api", masterkeyRoutes);
 
-const dataRoutes = require("./routes/data");
-app.use("/api", dataRoutes);
+// Routes
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/masterkey", require("./routes/masterkey"));
+app.use("/api/data", require("./routes/data"));
+app.use("/frontend", express.static(path.join(__dirname, "../frontend")));
 
-app.use("/api", authRoutes);
+const projectRoot = path.join(__dirname, "../");
 
-const http = require("http");
-const { initWSS } = require("./ws");
-
-const server = http.createServer(app);
-initWSS(server);
-
-server.listen(3000, () => {
-  console.log("Server + WS running");
+app.get("/", (req, res) => {
+    res.redirect("/frontend/desktop/login.html");
 });
 
+// Kích hoạt Socket.io từ file ws.js
+ws.initWSS(server); // <--- DÒNG QUAN TRỌNG NHẤT
 
-app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-
-app.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server chạy tại http://localhost:${PORT}`);
 });

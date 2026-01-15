@@ -1,32 +1,43 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>VaultChat – Login</title>
-  <link rel="stylesheet" href="../desktop/css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Secure Vault</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>🔐 VaultChat</h1>
-    <h2>Đăng nhập</h2>
 
-    <form id="loginForm">
-      <label>Username</label>
-      <input id="username" required />
+    <div class="container">
+        <h1>Secure Vault</h1>
+        <h2>Đăng Nhập</h2>
 
-      <label>Password</label>
-      <input id="password" type="password" required />
+        <form id="loginForm">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="username">Tên đăng nhập</label>
+                <input type="text" id="username" placeholder="Nhập username..." required autocomplete="username">
+            </div>
 
-      <button type="submit">Đăng nhập</button>
-      <button type="button" class="secondary"
-        onclick="location.href='register.html'">
-        Đăng ký
-      </button>
-    </form>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" placeholder="Nhập password..." required autocomplete="current-password">
+            </div>
 
-    <div id="status" class="status"></div>
-  </div>
+            <button type="submit" style="margin-top: 10px;">
+                Truy cập Két sắt
+            </button>
+        </form>
 
-  <script src="js/login.js"></script>
+        <div style="margin-top: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px;">
+                Chưa có tài khoản?
+            </p>
+            <a href="register.html" style="text-decoration: none;">
+                <button class="secondary" style="width: 100%;">Tạo tài khoản mới</button>
+            </a>
+        </div>
+    </div>
+
+    <script type="module" src="js/login.js"></script>
 </body>
 </html>

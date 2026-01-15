@@ -1,35 +1,47 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>VaultChat – Register</title>
-  <link rel="stylesheet" href="../desktop/css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - Secure Vault</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>🧠 VaultChat</h1>
-    <h2>Đăng ký tài khoản</h2>
 
-    <form id="registerForm">
-      <label>Username</label>
-      <input id="username" required />
+    <div class="container">
+        <h1>Secure Vault</h1>
+        <h2>Đăng Ký</h2>
 
-      <label>Password</label>
-      <input id="password" type="password" required />
+        <form id="registerForm">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="username">Tên đăng nhập</label>
+                <input type="text" id="username" placeholder="Chọn tên đăng nhập..." required autocomplete="username">
+            </div>
 
-      <label>MasterKey (không thể khôi phục)</label>
-      <input id="masterKey" type="password" required />
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="password">Mật khẩu đăng nhập</label>
+                <input type="password" id="password" placeholder="Mật khẩu (để login)" required autocomplete="new-password">
+            </div>
 
-      <button type="submit">Tạo tài khoản</button>
-      <button type="button" class="secondary"
-        onclick="location.href='login.html'">
-        Quay lại đăng nhập
-      </button>
-    </form>
+            <hr style="border: 0; border-top: 1px solid #1e293b; margin: 10px 0;">
 
-    <div id="status" class="status"></div>
-  </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="masterKey" style="color: #38bdf8; font-weight: bold;">Master Key (Chìa khóa két)</label>
+                <input type="password" id="masterKey" placeholder="Nhập khóa bí mật..." required autocomplete="new-password">
+            </div>
 
-  <script src="js/register.js"></script>
+            <div class="status error" style="text-align: left; margin-top: 0;">
+                ⚠️ <strong>LƯU Ý:</strong> Server KHÔNG lưu Master Key. Nếu quên, bạn sẽ mất vĩnh viễn dữ liệu.
+            </div>
+
+            <button type="submit" style="margin-top: 10px;">Hoàn tất Đăng ký</button>
+        </form>
+
+        <a href="login.html" style="text-decoration: none; display: block; margin-top: 16px;">
+            <button class="secondary" style="width: 100%;">Quay lại Đăng nhập</button>
+        </a>
+    </div>
+
+    <script type="module" src="js/register.js"></script>
 </body>
 </html>

@@ -1,83 +1,68 @@
 const express = require("express");
 const router = express.Router();
-const argon2 = require("argon2");
+const db = require("../db");
+const bcrypt = require("bcryptjs"); // Nhớ dùng bcryptjs cho đỡ lỗi
 const jwt = require("jsonwebtoken");
-const db = require("../db/index");
 
+// 1. ĐĂNG KÝ
 router.post("/register", async (req, res) => {
+  // Frontend gửi: username, passwordHash (thô), authKeyHash (là authKey hex), kdfSalt (base64)
   const { username, passwordHash, authKeyHash, kdfSalt } = req.body;
 
-  // 1️⃣ Validate input
   if (!username || !passwordHash || !authKeyHash || !kdfSalt) {
-    return res.status(400).json({ error: "Missing fields" });
+    return res.status(400).json({ error: "Thiếu thông tin đăng ký" });
   }
 
   try {
-    // 2️⃣ Insert user
+    // Hash mật khẩu đăng nhập để lưu DB
+    const serverPasswordHash = await bcrypt.hash(passwordHash, 10);
+
+    // Insert vào DB với tên cột chuẩn theo Schema mới
     await db.execute(
-      `INSERT INTO users 
-       (username, password_hash, auth_key_hash, kdf_salt)
+      `INSERT INTO users (username, password_hash, auth_key_verifier, kdf_salt) 
        VALUES (?, ?, ?, ?)`,
-      [
-        username,
-        passwordHash,
-        authKeyHash,
-        Buffer.from(kdfSalt, "base64")
-      ]
+      [username, serverPasswordHash, authKeyHash, kdfSalt]
     );
 
-    res.json({ status: "ok" });
-
+    res.json({ message: "Đăng ký thành công" });
   } catch (err) {
-    // 3️⃣ Duplicate username
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ error: "User already exists" });
-    }
-
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: "Tên đăng nhập đã tồn tại" });
+    }
+    res.status(500).json({ error: "Lỗi Server" });
   }
 });
 
+// 2. ĐĂNG NHẬP
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
-  // 1️⃣ Validate input
-  if (!username || !password) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
   try {
-    // 2️⃣ Lấy user từ DB
+    // Lấy thêm cột kdf_salt
     const [rows] = await db.execute(
-      "SELECT id, password_hash FROM users WHERE username = ?",
+      "SELECT id, password_hash, kdf_salt FROM users WHERE username = ?",
       [username]
     );
 
-    if (rows.length === 0) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (rows.length === 0) return res.status(401).json({ error: "Sai tài khoản hoặc mật khẩu" });
 
     const user = rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
 
-    // 3️⃣ Verify password
-    const ok = await argon2.verify(user.password_hash, password);
-    if (!ok) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (!match) return res.status(401).json({ error: "Sai tài khoản hoặc mật khẩu" });
 
-    // 4️⃣ Tạo JWT session
-    const token = jwt.sign(
-      { uid: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+    const token = jwt.sign({ uid: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    res.json({ status: "ok", token });
+    res.json({
+      message: "Đăng nhập thành công",
+      token: token,
+      salt: user.kdf_salt // <--- QUAN TRỌNG: Trả Salt về cho Client
+    });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Lỗi Server" });
   }
 });
 
