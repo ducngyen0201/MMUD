@@ -3,35 +3,41 @@ const { Server } = require("socket.io");
 let io;
 
 exports.initWSS = (httpServer) => {
-  // Khởi tạo Socket.io gắn vào HttpServer
+  // Khởi tạo Socket.io
   io = new Server(httpServer, {
     cors: {
-      origin: "*", // Cho phép Frontend (127.0.0.1:5500) kết nối
+      origin: "*", // Chấp nhận mọi kết nối (Mobile & Desktop)
       methods: ["GET", "POST"]
     }
   });
 
   io.on("connection", (socket) => {
-    console.log("🔌 New client connected:", socket.id);
+    console.log("🔌 Client kết nối:", socket.id);
 
-    // Xử lý các sự kiện socket tại đây
-    socket.on("disconnect", () => {
-      console.log("❌ Client disconnected:", socket.id);
+    // 1. Desktop tạo phòng (Khi hiện QR)
+    socket.on("desktop_join", (sessionId) => {
+      socket.join(sessionId);
+      console.log(`💻 Desktop joined room: ${sessionId}`);
     });
-    
-    // Ví dụ: Mobile gửi yêu cầu login
-    socket.on('login-request', (data) => {
-        console.log("Received login request:", data);
+
+    // 2. Mobile gửi Key (Khi quét xong)
+    socket.on("mobile_send_key", (data) => {
+      const { sessionId, encryptedKeyPkg } = data;
+      console.log(`📱 Mobile gửi hàng tới: ${sessionId}`);
+      
+      // Chuyển tiếp ngay cho Desktop trong phòng đó
+      io.to(sessionId).emit("receive_key", encryptedKeyPkg);
+    });
+
+    socket.on("disconnect", () => {
+      // console.log("❌ Client disconnected");
     });
   });
   
-  console.log("Initialize Socket.io success");
+  console.log("✅ Socket.io initialized!");
 };
 
-// Hàm tiện ích để file khác (như auth.js) có thể dùng để bắn thông báo
 exports.getIO = () => {
-  if (!io) {
-    throw new Error("Socket.io not initialized!");
-  }
+  if (!io) throw new Error("Socket.io not initialized!");
   return io;
 };

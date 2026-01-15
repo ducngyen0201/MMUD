@@ -1,6 +1,5 @@
-import { API_URL, WS_URL } from './config.js';
+import { API_URL } from './config.js';
 
-// --- XỬ LÝ LOGIN TRUYỀN THỐNG ---
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const username = document.getElementById('username').value;
@@ -16,51 +15,22 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         const data = await res.json();
 
         if (res.ok) {
-            // Login thành công -> Lưu Token và Salt
+            // Lưu Token
             localStorage.setItem('token', data.token);
-            // Backend cần trả về Salt của user để client dùng tính MasterKey sau này
-            if(data.user && data.user.salt) {
-                localStorage.setItem('salt', data.user.salt);
+            
+            // [QUAN TRỌNG] Lưu Salt
+            if (data.salt) {
+                localStorage.setItem('salt', data.salt);
+                console.log("Đã lưu Salt:", data.salt);
+                window.location.href = 'vault.html';
+            } else {
+                alert("Lỗi dữ liệu: Tài khoản này không có Salt (Do tạo trước khi update DB). Vui lòng tạo tài khoản mới.");
             }
-            window.location.href = 'vault.html';
         } else {
-            alert(data.message || 'Đăng nhập thất bại');
+            alert(data.error || "Đăng nhập thất bại");
         }
     } catch (err) {
         console.error(err);
-        alert('Lỗi kết nối server');
-    }
-});
-
-// --- XỬ LÝ QR LOGIN (WebSocket) ---
-const socket = io(WS_URL);
-const qrContainer = document.getElementById("qrcode");
-
-socket.on('connect', () => {
-    document.getElementById('qrStatus').innerText = "Hãy dùng App Mobile quét mã này";
-    
-    // Tạo mã QR chứa SessionID
-    qrContainer.innerHTML = ""; 
-    const sessionData = JSON.stringify({
-        type: 'login-request',
-        sid: socket.id
-    });
-    
-    new QRCode(qrContainer, {
-        text: sessionData,
-        width: 180,
-        height: 180
-    });
-});
-
-// Lắng nghe sự kiện khi Mobile xác nhận thành công
-socket.on('login-success', (data) => {
-    console.log("Mobile login confirmed!", data);
-    if (data.token) {
-        localStorage.setItem('token', data.token);
-        if (data.salt) localStorage.setItem('salt', data.salt);
-        
-        alert("Đăng nhập bằng QR thành công!");
-        window.location.href = 'vault.html';
+        alert("Lỗi kết nối Server");
     }
 });

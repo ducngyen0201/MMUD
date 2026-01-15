@@ -2,29 +2,42 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập - Secure Vault</title>
     <link rel="stylesheet" href="css/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-    <div class="split-container">
-        <div class="login-box">
-            <h2>Đăng nhập</h2>
-            <form id="loginForm">
-                <input type="text" id="username" placeholder="Tên đăng nhập" required>
-                <input type="password" id="password" placeholder="Mật khẩu" required>
-                <button type="submit">Đăng nhập</button>
-            </form>
-            <p>Chưa có tài khoản? <a href="register.html">Đăng ký</a></p>
-        </div>
 
-        <div class="qr-box">
-            <h3>Hoặc quét mã QR</h3>
-            <div id="qrcode"></div>
-            <p id="qrStatus">Đang kết nối WebSocket...</p>
+    <div class="container">
+        <h1>Secure Vault</h1>
+        <h2>Đăng Nhập</h2>
+
+        <form id="loginForm">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="username">Tên đăng nhập</label>
+                <input type="text" id="username" placeholder="Nhập username..." required autocomplete="username">
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+                <label for="password">Mật khẩu</label>
+                <input type="password" id="password" placeholder="Nhập password..." required autocomplete="current-password">
+            </div>
+
+            <button type="submit" style="margin-top: 10px;">
+                Truy cập Két sắt
+            </button>
+        </form>
+
+        <div style="margin-top: 20px; text-align: center;">
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px;">
+                Chưa có tài khoản?
+            </p>
+            <a href="register.html" style="text-decoration: none;">
+                <button class="secondary" style="width: 100%;">Tạo tài khoản mới</button>
+            </a>
         </div>
     </div>
+
     <script type="module" src="js/login.js"></script>
 </body>
 </html>

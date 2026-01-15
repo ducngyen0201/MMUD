@@ -1,94 +1,68 @@
 const express = require("express");
 const router = express.Router();
-const argon2 = require("argon2");
+const db = require("../db");
+const bcrypt = require("bcryptjs"); // Nhớ dùng bcryptjs cho đỡ lỗi
 const jwt = require("jsonwebtoken");
-const db = require("../db/index");
 
-// --- 1. ĐĂNG KÝ ---
+// 1. ĐĂNG KÝ
 router.post("/register", async (req, res) => {
-  // Giữ nguyên tên biến để không phải sửa Frontend
+  // Frontend gửi: username, passwordHash (thô), authKeyHash (là authKey hex), kdfSalt (base64)
   const { username, passwordHash, authKeyHash, kdfSalt } = req.body;
 
   if (!username || !passwordHash || !authKeyHash || !kdfSalt) {
-    return res.status(400).json({ error: "Missing fields" });
+    return res.status(400).json({ error: "Thiếu thông tin đăng ký" });
   }
 
   try {
-    // [SỬA 1]: Băm mật khẩu (Login Password) trước khi lưu
-    // passwordHash ở đây thực chất là mật khẩu thô từ Frontend gửi lên
-    const safePasswordForDb = await argon2.hash(passwordHash);
+    // Hash mật khẩu đăng nhập để lưu DB
+    const serverPasswordHash = await bcrypt.hash(passwordHash, 10);
 
-    // Lưu vào DB
+    // Insert vào DB với tên cột chuẩn theo Schema mới
     await db.execute(
-      `INSERT INTO users 
-       (username, password_hash, auth_key_hash, kdf_salt)
+      `INSERT INTO users (username, password_hash, auth_key_verifier, kdf_salt) 
        VALUES (?, ?, ?, ?)`,
-      [
-        username,
-        safePasswordForDb, // Lưu bản đã băm
-        authKeyHash,       // Logic Verify Key giữ nguyên
-        Buffer.from(kdfSalt, "base64") // Salt giữ nguyên cách lưu
-      ]
+      [username, serverPasswordHash, authKeyHash, kdfSalt]
     );
 
-    res.json({ status: "ok" });
-
+    res.json({ message: "Đăng ký thành công" });
   } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ error: "User already exists" });
-    }
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: "Tên đăng nhập đã tồn tại" });
+    }
+    res.status(500).json({ error: "Lỗi Server" });
   }
 });
 
-// --- 2. ĐĂNG NHẬP ---
+// 2. ĐĂNG NHẬP
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ error: "Missing fields" });
-  }
-
   try {
-    // [SỬA 2]: Phải lấy thêm cột `kdf_salt` từ DB
+    // Lấy thêm cột kdf_salt
     const [rows] = await db.execute(
       "SELECT id, password_hash, kdf_salt FROM users WHERE username = ?",
       [username]
     );
 
-    if (rows.length === 0) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (rows.length === 0) return res.status(401).json({ error: "Sai tài khoản hoặc mật khẩu" });
 
     const user = rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
 
-    // Kiểm tra mật khẩu (Giờ sẽ không bị lỗi 500 nữa vì lúc đăng ký đã hash đúng chuẩn)
-    const ok = await argon2.verify(user.password_hash, password);
-    if (!ok) {
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
+    if (!match) return res.status(401).json({ error: "Sai tài khoản hoặc mật khẩu" });
 
-    const token = jwt.sign(
-      { uid: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "15m" }
-    );
+    const token = jwt.sign({ uid: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    // [SỬA 3]: Trả về Salt cho Frontend (để tính MasterKey)
-    // Chuyển Buffer từ DB sang Hex string để gửi qua JSON an toàn
-    const saltHex = user.kdf_salt.toString('hex');
-
-    res.json({ 
-        status: "ok", 
-        token, 
-        // Backend trả về salt, Frontend cần cái này để mở Vault
-        user: { username, salt: saltHex } 
+    res.json({
+      message: "Đăng nhập thành công",
+      token: token,
+      salt: user.kdf_salt // <--- QUAN TRỌNG: Trả Salt về cho Client
     });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Lỗi Server" });
   }
 });
 

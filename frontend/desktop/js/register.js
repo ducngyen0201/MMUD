@@ -1,36 +1,58 @@
 import { API_URL } from './config.js';
-import { generateSalt, deriveKeys, buf2hex, buf2base64, hex2buf } from './crypto.js';
+import { generateSalt, deriveKeys, hex2buf, buf2base64 } from './crypto.js';
 
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    // 1. Lấy dữ liệu từ Form
     const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value; // Pass đăng nhập
-    const masterKey = document.getElementById('masterKey').value; // Master Key
+    const password = document.getElementById('password').value;   // Mật khẩu đăng nhập
+    const masterKey = document.getElementById('masterKey').value; // Master Key (Két sắt)
+
+    if (!username || !password || !masterKey) {
+        return alert("Vui lòng điền đầy đủ thông tin!");
+    }
+
+    // Disable nút để tránh bấm nhiều lần
+    const btnSubmit = e.target.querySelector('button');
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = "Đang xử lý...";
 
     try {
-        // 1. Tạo Salt ngẫu nhiên (dạng Hex để dùng cho hàm deriveKeys cũ)
+        console.log("🚀 Bắt đầu tạo tài khoản...");
+
+        // 2. Tạo Salt ngẫu nhiên (dạng Hex để tính toán client-side)
         const saltHex = generateSalt(); 
         
-        // 2. Tính toán Auth Key từ MasterKey
-        const { authVerifier } = await deriveKeys(masterKey, saltHex);
+        // 3. Tính toán Key từ MasterKey
+        // Hàm deriveKeys trả về: { encryptKey, authKey, authVerifier }
+        // Lưu ý: authVerifier chính là Hash(AuthKey)
+        const keys = await deriveKeys(masterKey, saltHex);
 
-        // 3. Chuẩn bị dữ liệu gửi lên Backend
-        // Backend yêu cầu kdfSalt là Base64
+        if (!keys.authVerifier) {
+            throw new Error("Hàm deriveKeys trong crypto.js chưa trả về authVerifier!");
+        }
+
+        // 4. Chuẩn bị Salt để gửi lên Server (Chuyển Hex -> Base64 cho gọn DB)
+        // Backend sẽ lưu chuỗi Base64 này vào cột kdf_salt
         const saltBuffer = hex2buf(saltHex);
         const saltBase64 = buf2base64(saltBuffer);
-
+        console.log("📝 [REGISTER] AuthKey gửi lên:", keys.authKey);
+        // 5. Đóng gói dữ liệu (Payload)
         const payload = {
             username: username,
-            // LƯU Ý: Backend tên là 'passwordHash' nhưng ta gửi password thô
-            // Lý do: Backend code bạn gửi lưu trực tiếp biến này. 
-            // Nếu gửi hash, argon2.verify lúc login sẽ lỗi format.
+            
+            // Backend sẽ lấy passwordHash này đem đi Argon2 lần nữa rồi mới lưu
             passwordHash: password, 
-            authKeyHash: authVerifier,
-            kdfSalt: saltBase64
+            
+            // Đây là cái Server cần lưu để xác thực (Thay vì lưu MasterKey)
+            authKeyHash: keys.authKey, 
+            
+            // Salt để sau này đăng nhập trả lại cho Client tính toán
+            kdfSalt: saltBase64 
         };
 
-        // 4. Gửi Request
+        // 6. Gửi Request đăng ký
         const response = await fetch(`${API_URL}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -40,13 +62,19 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         const data = await response.json();
 
         if (response.ok) {
-            alert('Đăng ký thành công!');
+            alert('✅ Đăng ký thành công!');
             window.location.href = 'login.html';
         } else {
-            alert('Lỗi: ' + (data.error || 'Đăng ký thất bại'));
+            console.error("Lỗi Server:", data);
+            alert('❌ Lỗi: ' + (data.error || 'Đăng ký thất bại'));
+            btnSubmit.disabled = false;
+            btnSubmit.textContent = "Đăng ký";
         }
+
     } catch (err) {
-        console.error(err);
-        alert('Lỗi xử lý client-side');
+        console.error("Lỗi Client:", err);
+        alert('❌ Lỗi xử lý mã hóa: ' + err.message);
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = "Đăng ký";
     }
 });

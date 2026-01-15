@@ -2,38 +2,144 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Secure Data Vault</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Két Sắt An Toàn (Zero-Knowledge)</title>
+    
     <link rel="stylesheet" href="css/style.css">
+    
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        /* Tùy chỉnh riêng cho trang Vault để chia cột */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr; /* Cột trái nhỏ, cột phải to */
+            gap: 20px;
+        }
+
+        /* Responsive: Trên điện thoại thì xếp dọc */
+        @media (max-width: 768px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+            .dashboard-container {
+                max-width: 100% !important;
+            }
+        }
+
+        /* Ghi đè container mặc định để rộng hơn khi vào Dashboard */
+        .dashboard-container {
+            width: 100%;
+            max-width: 900px; /* Rộng hơn form login thường */
+            background: transparent; /* Trong suốt để nhìn thấy nền */
+            box-shadow: none;
+            padding: 0;
+        }
+        
+        /* Container con bên trong dashboard */
+        .panel {
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .qr-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Căn giữa theo chiều ngang */
+            justify-content: center; /* Căn giữa theo chiều dọc */
+            text-align: center; /* Căn giữa văn bản con (nếu có) */
+            margin-top: 20px; /* Khoảng cách phía trên */
+        }
+
+        /* Container cụ thể cho mã QR */
+        #qrcode {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        /* Đảm bảo hình ảnh QR tự động căn giữa */
+        }
+
+        #qrcode img {
+            margin: auto; /* Căn giữa hình ảnh QR trong thẻ chứa nó */
+            display: block; /* Đảm bảo không có khoảng trắng thừa */
+        }
+
+        /* Trạng thái bên dưới QR */
+        #qrStatus {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        /* Ẩn hiện các màn hình */
+        #appContent { display: none; }
+    </style>
 </head>
 <body>
-    <div id="lockScreen" class="overlay">
-        <div class="lock-box">
-            <h2>🔐 Vault Locked</h2>
-            <p>Nhập Master Key để giải mã dữ liệu</p>
-            <input type="password" id="inpMasterKey" placeholder="Master Key">
-            <button id="btnUnlock">Mở khóa</button>
-            <p class="hint">(Sẽ tự khóa lại sau 30s không hoạt động)</p>
+
+    <div id="lockScreen" class="container">
+        <h1>🔒 Két Sắt</h1>
+        <p style="text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem;">
+            Nhập Master Key hoặc quét QR
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+            <input type="password" id="inpMasterKey" placeholder="Nhập Master Key...">
+            <button id="btnUnlock">MỞ KHÓA</button>
         </div>
+
+        <div style="display: flex; align-items: center; margin: 20px 0; color: #475569;">
+            <hr style="flex: 1; border-color: #334155;">
+            <span style="padding: 0 10px; font-size: 0.8rem;">HOẶC</span>
+            <hr style="flex: 1; border-color: #334155;">
+        </div>
+
+        <div class="qr-box">
+            <div id="qrcode" class="qr">
+                </div>
+            <div id="qrStatus" class="status ok">Đang khởi tạo QR...</div>
+        </div>
+
+        <div class="timer">Phiên làm việc tự động khóa sau 30s</div>
     </div>
 
-    <div id="appContent" style="display:none;">
-        <div class="header">
-            <h1>Dữ liệu của tôi</h1>
-            <button id="btnLogout">Đăng xuất</button>
-        </div>
+
+    <div id="appContent" class="dashboard-container">
         
-        <div class="mb-3">
-          <input type="text" id="inpDomain" class="form-control mb-2" placeholder="Tên trang web (VD: Facebook)">
-          <div class="input-group">
-          <input type="text" id="newData" class="form-control" placeholder="Mật khẩu / Nội dung mật">
-          <button class="btn btn-primary" id="btnAdd">Lưu</button>
-          </div>
+        <div class="panel" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0; text-align: left;">🔐 My Vault</h2>
+            <button id="btnLogout" class="secondary" style="width: auto; padding: 8px 16px;">Đăng xuất</button>
         </div>
 
-        <ul id="dataList">
-            </ul>
+        <div class="dashboard-layout">
+            <div class="panel">
+                <h3>Thêm Mới</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+                    <div>
+                        <label>Tên gợi nhớ (Domain)</label>
+                        <input type="text" id="inpDomain" placeholder="Ví dụ: Facebook">
+                    </div>
+                    <div>
+                        <label>Mật khẩu</label>
+                        <input type="password" id="newData" placeholder="Nhập mật khẩu...">
+                    </div>
+                    <button id="btnAdd" style="margin-top: 10px;">Mã hóa & Lưu</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Danh sách mật khẩu</h3>
+                
+                <ul id="dataList">
+                    </ul>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="js/vault.js"></script>
+
 </body>
 </html>

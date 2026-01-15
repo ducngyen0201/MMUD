@@ -1,279 +1,277 @@
 import { API_URL } from './config.js';
-import { deriveKeys, encryptData, decryptData } from './crypto.js';
+import { 
+    deriveKeys, encryptData, decryptData, calculateHMAC, base64ToHex,
+    generateECDHKeyPair, exportKeyJWK, deriveSharedKey, importKeyJWK 
+} from './crypto.js';
 
-let encryptKey = null; // Key giải mã (RAM)
-let timeoutParams = null;
-let unlockToken = null; // Token mở két từ Server
+const MY_IP = "192.168.1.128"; 
+const FRONTEND_URL = `http://${MY_IP}:3000/frontend/mobile/mobile.html`;
+// ==========================================
+// 1. KHAI BÁO BIẾN & SOCKET
+// ==========================================
+const socket = io("http://localhost:3000"); // Kết nối Socket server
 
-// 1. Kiểm tra đăng nhập
-const token = localStorage.getItem('token');
-const salt = localStorage.getItem('salt');
+let token = localStorage.getItem('token');
+let unlockToken = null; 
+let encryptKey = null;  
+let autoLockTimer = null; 
+const SESSION_LIMIT_MS = 30000; // 30 giây cứng
 
-if (!token || !salt) {
+// Biến cho tính năng QR/Mobile Sync
+let ecdhKeyPair = null;
+let currentSessionId = null;
+
+// Kiểm tra login
+if (!token) {
     window.location.href = 'login.html';
 }
 
-// ---------------------------------------------------------
-// 2. Logic Mở Khóa (Handshake với Server + Tính Key Client)
-// ---------------------------------------------------------
-document.getElementById('btnUnlock').addEventListener('click', async () => {
-    const masterKeyInput = document.getElementById('inpMasterKey').value;
-    if (!masterKeyInput) return alert('Vui lòng nhập Master Key');
-
+// ==========================================
+// 2. LOGIC TẠO QR CODE (ĐÃ SỬA LỖI TRÀN DỮ LIỆU)
+// ==========================================
+async function initQRCode() {
     try {
-        // Bước A: Tính toán Key giải mã ở Client
-        const keys = await deriveKeys(masterKeyInput, salt);
-        
-        // Bước B: Xin "Vé mở két" từ Server (Challenge-Response)
-        const serverUnlocked = await performUnlockHandshake();
-        
-        if (!serverUnlocked) {
-            alert("Lỗi: Server không cấp quyền mở khóa (Kiểm tra DB masterkey_nonce)");
-            return;
-        }
+        currentSessionId = crypto.randomUUID();
+        ecdhKeyPair = await generateECDHKeyPair();
+        const publicKeyJWK = await exportKeyJWK(ecdhKeyPair.publicKey);
 
-        // Nếu cả 2 bước OK -> Lưu Key và hiển thị giao diện
-        encryptKey = keys.encryptKey;
+        // Đóng gói dữ liệu
+        const rawData = JSON.stringify({
+            sid: currentSessionId,
+            pub: publicKeyJWK
+        });
 
-        document.getElementById('lockScreen').style.display = 'none';
-        document.getElementById('appContent').style.display = 'block';
-        document.getElementById('inpMasterKey').value = ''; 
+        // 👇 MÃ HÓA DỮ LIỆU THÀNH URL (Base64) ĐỂ GẮN VÀO LINK
+        // Kết quả sẽ là: http://192.168.1.10:5500/mobile.html#data=eyJzaW...
+        const encodedData = btoa(rawData);
+        const qrLink = `${FRONTEND_URL}#data=${encodedData}`;
 
-        // Tải dữ liệu ngay
-        loadData();
+        console.log("QR Link:", qrLink); // Debug
+
+        const qrContainer = document.getElementById("qrcode");
+        qrContainer.innerHTML = ""; 
+
+        new QRCode(qrContainer, {
+            text: qrLink, // <--- QR bây giờ là Link
+            width: 250,   // Tăng to lên cho dễ quét
+            height: 250,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.L
+        });
+
+        document.getElementById("qrStatus").textContent = "Quét bằng Camera thường để mở";
         
-        // Bắt đầu đếm ngược tự khóa
-        resetAutoLock();
+        socket.emit("desktop_join", currentSessionId);
 
     } catch (e) {
-        console.error(e);
-        alert('Lỗi tính toán Key hoặc kết nối Server');
+        console.error("Lỗi tạo QR:", e);
+    }
+}
+
+// ==========================================
+// 3. LOGIC NHẬN KEY TỪ MOBILE (SOCKET)
+// ==========================================
+socket.on("receive_key", async (encryptedPkg) => {
+    console.log("📦 Đã nhận gói hàng từ Mobile!");
+    document.getElementById("qrStatus").textContent = "Đang giải mã & đăng nhập...";
+    document.getElementById("qrStatus").className = "text-success small fw-bold";
+
+    try {
+        // encryptedPkg gồm: { iv, ciphertext, auth_tag, mobilePub }
+        
+        // 1. Lấy Public Key của Mobile
+        const mobilePubKey = await importKeyJWK(encryptedPkg.mobilePub);
+        
+        // 2. Tính ra Shared Secret (Khóa chung)
+        const sharedKey = await deriveSharedKey(ecdhKeyPair.privateKey, mobilePubKey);
+
+        // 3. Giải mã gói hàng để lấy MasterKey
+        const decryptedMasterKey = await decryptData({
+            iv: encryptedPkg.iv,
+            ciphertext: encryptedPkg.ciphertext,
+            auth_tag: encryptedPkg.auth_tag
+        }, sharedKey);
+
+        if (decryptedMasterKey) {
+            console.log("✅ Mobile Sync thành công!");
+            
+            // Tự động điền và mở khóa
+            document.getElementById('inpMasterKey').value = decryptedMasterKey;
+            performUnlockHandshake(decryptedMasterKey);
+        } else {
+            alert("Giải mã thất bại (Sai key hoặc tấn công mạng).");
+        }
+    } catch (e) {
+        console.error("Lỗi Mobile Sync:", e);
+        alert("Có lỗi khi đồng bộ từ điện thoại.");
     }
 });
 
-// Hàm xin Token mở két (Challenge-Response)
-async function performUnlockHandshake() {
-  const currentToken = localStorage.getItem('token');
-    
-    if (!currentToken) {
-        alert("Bạn chưa đăng nhập!");
-        window.location.href = 'login.html';
-        return false;
-    }  
-  
-  try {
-        // 1. Xin Challenge
-        const res1 = await fetch(`${API_URL}/masterkey/challenge`, {
-            method: 'POST',
-            headers: { 
-                'Authorization': `Bearer ${token}` 
-            }
-        });
+// ==========================================
+// 4. LOGIC KHÓA & ĐẾM NGƯỢC
+// ==========================================
+async function lockVault() {
+    console.log("🔒 [TIMEOUT] Khóa két..."); 
 
-        if (res1.status === 401) {
-            alert("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại!");
-            localStorage.removeItem('token'); // Xóa token hỏng
-            window.location.href = 'login.html';
-            return false;
-        }
-        
-        if(!res1.ok) throw new Error("Lỗi lấy Challenge");
-        const challengeData = await res1.json();
+    encryptKey = null;
+    const tokenToRevoke = unlockToken;
+    unlockToken = null;
 
-        // 2. Tính HMAC (Tạm thời gửi fake theo backend hiện tại)
-        // Khi nào hoàn thiện, bạn sẽ dùng masterKeyInput để ký vào nonce này
-        const fakeHmac = "client-proof-signature"; 
+    if (autoLockTimer) clearTimeout(autoLockTimer);
+    autoLockTimer = null;
 
-        // 3. Gửi Verify
-        const res2 = await fetch(`${API_URL}/masterkey/verify`, {
+    document.getElementById('dataList').innerHTML = '';
+    document.getElementById('inpMasterKey').value = ''; 
+    document.getElementById('appContent').style.display = 'none';
+    document.getElementById('lockScreen').style.display = 'flex';
+
+    // Khi bị khóa -> Tạo lại QR mới để sẵn sàng quét tiếp
+    initQRCode(); 
+
+    if (tokenToRevoke) {
+        fetch(`${API_URL}/masterkey/lock`, { 
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
+                'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ hmac: fakeHmac })
-        });
+            body: JSON.stringify({ unlockToken: tokenToRevoke })
+        }).catch(() => {});
+    }
+}
 
+function startSessionTimer() {
+    if (autoLockTimer) clearTimeout(autoLockTimer);
+    console.log("⏳ Bắt đầu đếm ngược 30s...");
+    autoLockTimer = setTimeout(lockVault, SESSION_LIMIT_MS);
+}
+
+// ==========================================
+// 5. LOGIC ZERO-KNOWLEDGE HANDSHAKE
+// ==========================================
+async function performUnlockHandshake(masterKeyInput) {
+    const storedSalt = localStorage.getItem('salt');
+    if (!storedSalt) return alert("Lỗi Salt. Hãy đăng nhập lại.");
+
+    try {
+        const saltHex = base64ToHex(storedSalt);
+        
+        // Xin Challenge
+        const res1 = await fetch(`${API_URL}/masterkey/challenge`, {
+             headers: { 'Authorization': `Bearer ${token}` }, method: 'POST'
+        });
+        if (!res1.ok) throw new Error("Lỗi API Challenge");
+        const challengeData = await res1.json(); 
+
+        // Tính Key & Ký
+        const keys = await deriveKeys(masterKeyInput, saltHex);
+        const signature = await calculateHMAC(keys.authKey, challengeData.nonce);
+
+        // Verify
+        const res2 = await fetch(`${API_URL}/masterkey/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ hmac: signature })
+        });
         const verifyData = await res2.json();
 
         if (verifyData.status === "ok") {
             unlockToken = verifyData.unlockToken;
+            encryptKey = keys.encryptKey;
+            
+            // UI Update
+            document.getElementById('lockScreen').style.display = 'none';
+            document.getElementById('appContent').style.display = 'block';
+            
+            // Load Data & Start Timer
+            loadData();
+            startSessionTimer();
             return true;
         } else {
-            console.error("Server từ chối:", verifyData.error);
+            alert("Mở khóa thất bại: " + verifyData.error);
             return false;
         }
     } catch (err) {
-        console.error("Lỗi handshake:", err);
+        console.error(err);
+        alert("Lỗi xác thực.");
         return false;
     }
 }
 
-// ---------------------------------------------------------
-// 3. Tải và Giải mã dữ liệu
-// ---------------------------------------------------------
-async function loadData() {
-    // Kiểm tra đủ 2 chìa khóa: Chìa khóa nhà (Token) + Chìa khóa két (UnlockToken)
-    if (!unlockToken || !encryptKey) return;
+// ==========================================
+// 6. UI EVENTS & LOAD DATA
+// ==========================================
+document.getElementById('btnUnlock').addEventListener('click', async () => {
+    const mk = document.getElementById('inpMasterKey').value;
+    if (mk) performUnlockHandshake(mk);
+});
 
+async function loadData() {
+    if (!unlockToken || !encryptKey) return;
     try {
         const res = await fetch(`${API_URL}/data`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'x-unlock-token': unlockToken
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'x-unlock-token': unlockToken }
         });
-
-        // Xử lý khi hết phiên mở két (Backend trả về 403)
-        if (res.status === 403) {
-            alert("Phiên làm việc hết hạn. Vui lòng nhập lại Master Key.");
-            forceLock(); // Hàm khóa màn hình
+        if (!res.ok) {
+            if (res.status === 403) lockVault();
             return;
         }
-
         const items = await res.json();
         const listEl = document.getElementById('dataList');
         listEl.innerHTML = '';
 
         for (const item of items) {
-            const cryptoObj = {
-                iv: item.iv, 
-                ciphertext: item.ciphertext, // Đây là password đã mã hóa
-                auth_tag: item.authTag || item.auth_tag 
-            };
-
             try {
-                // Giải mã Password
-                const plainPassword = await decryptData(cryptoObj, encryptKey);
+                const plain = await decryptData({
+                    iv: item.iv, ciphertext: item.ciphertext, auth_tag: item.authTag || item.auth_tag
+                }, encryptKey);
                 
                 const li = document.createElement('li');
                 li.className = "list-group-item d-flex justify-content-between align-items-center";
-                
-                // Hiển thị đẹp: Domain in đậm - Password bên cạnh
                 li.innerHTML = `
-                    <div>
-                        <strong class="text-primary">${item.domain}</strong>
-                        <div class="text-muted small">********</div> </div>
-                    <button class="btn btn-sm btn-outline-secondary btn-show-pass">Hiện</button>
+                    <div><strong class="text-primary">${item.domain}</strong></div>
+                    <button class="btn btn-sm btn-outline-secondary btn-show">Hiện</button>
                 `;
-
-                // Xử lý nút "Hiện" để toggle password
-                const btnShow = li.querySelector('.btn-show-pass');
-                const passDiv = li.querySelector('.text-muted');
-                
-                btnShow.addEventListener('click', () => {
-                    if (passDiv.textContent === '********') {
-                        passDiv.textContent = plainPassword;
-                        passDiv.classList.remove('text-muted');
-                        passDiv.classList.add('text-success', 'fw-bold');
-                        btnShow.textContent = 'Ẩn';
+                li.querySelector('.btn-show').onclick = function() {
+                    if (this.textContent === 'Hiện') {
+                        this.textContent = plain;
+                        this.classList.remove('btn-outline-secondary');
+                        this.classList.add('btn-outline-danger');
                     } else {
-                        passDiv.textContent = '********';
-                        passDiv.classList.add('text-muted');
-                        passDiv.classList.remove('text-success', 'fw-bold');
-                        btnShow.textContent = 'Hiện';
+                        this.textContent = 'Hiện';
+                        this.classList.add('btn-outline-secondary');
+                        this.classList.remove('btn-outline-danger');
                     }
-                });
-
+                };
                 listEl.appendChild(li);
-
-            } catch (err) {
-                console.error("Lỗi giải mã:", err);
-            }
+            } catch (e) { console.error("Decrypt fail", e); }
         }
-    } catch (err) { console.error(err); }
+    } catch (e) { console.error(e); }
 }
 
-// ---------------------------------------------------------
-// 4. Thêm dữ liệu mới
-// ---------------------------------------------------------
 document.getElementById('btnAdd').addEventListener('click', async () => {
-    const domain = document.getElementById('inpDomain').value; // Lấy Domain
-    const password = document.getElementById('newData').value;  // Lấy Password
+    const domain = document.getElementById('inpDomain').value;
+    const pass = document.getElementById('newData').value;
+    if (!domain || !pass || !encryptKey) return;
 
-    if (!domain || !password) return alert("Vui lòng nhập đủ Domain và Mật khẩu");
-    if (!encryptKey) return alert("Hết phiên làm việc. Vui lòng mở khóa lại.");
-
-    // Chỉ Mã hóa Password
-    const { iv, ciphertext, auth_tag } = await encryptData(password, encryptKey);
-
-    const res = await fetch(`${API_URL}/data`, {
+    const enc = await encryptData(pass, encryptKey);
+    await fetch(`${API_URL}/data`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'x-unlock-token': unlockToken
-        },
-        // Gửi cả domain (không mã hóa) và password (đã mã hóa)
-        body: JSON.stringify({ 
-            domain: domain,
-            ciphertext: ciphertext,
-            iv: iv,
-            authTag: auth_tag 
-        })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, 'x-unlock-token': unlockToken },
+        body: JSON.stringify({ domain, ciphertext: enc.ciphertext, iv: enc.iv, authTag: enc.auth_tag })
     });
-
-    if (res.ok) {
-        document.getElementById('inpDomain').value = '';
-        document.getElementById('newData').value = '';
-        loadData();
-    } else {
-        alert("Lỗi lưu dữ liệu");
-    }
+    document.getElementById('inpDomain').value = '';
+    document.getElementById('newData').value = '';
+    loadData();
 });
-
-// ---------------------------------------------------------
-// 5. Logic Auto-Lock
-// ---------------------------------------------------------
-function resetAutoLock() {
-    if (timeoutParams) clearTimeout(timeoutParams);
-    timeoutParams = setTimeout(forceLock, 30000); // 30s
-}
-
-function forceLock() {
-    console.log("Timeout! Locking vault...");
-    encryptKey = null; 
-    unlockToken = null; // Xóa luôn token server
-    document.getElementById('lockScreen').style.display = 'flex';
-    document.getElementById('appContent').style.display = 'none';
-    document.getElementById('dataList').innerHTML = ''; 
-}
-
-window.addEventListener('mousemove', () => { if(encryptKey) resetAutoLock(); });
-window.addEventListener('keypress', () => { if(encryptKey) resetAutoLock(); });
-
-// ---------------------------------------------------------
-// 6. Helpers
-// ---------------------------------------------------------
-
-// Hàm chuyển Base64 (từ Server) sang Hex (cho Crypto JS)
-function base64ToHex(str) {
-    if (!str) return '';
-    const raw = atob(str);
-    let result = '';
-    for (let i = 0; i < raw.length; i++) {
-        const hex = raw.charCodeAt(i).toString(16);
-        result += (hex.length === 2 ? hex : '0' + hex);
-    }
-    return result;
-}
 
 document.getElementById('btnLogout').addEventListener('click', () => {
-    // 1. Hỏi xác nhận cho chắc chắn (Optional)
-    if (!confirm("Bạn có chắc muốn đăng xuất?")) return;
-
-    console.log("Đang đăng xuất...");
-
-    // 2. Xóa sạch mọi thứ trong LocalStorage
-    // Đây là bước quan trọng nhất: Mất Token = Mất quyền truy cập
-    localStorage.removeItem('token');
-    localStorage.removeItem('salt'); 
-    localStorage.removeItem('username'); // Nếu bạn có lưu
-
-    // 3. Xóa các biến nhạy cảm trong RAM (Bộ nhớ tạm)
-    encryptKey = null;
-    unlockToken = null;
-
-    // 4. Chuyển hướng về trang Login
+    localStorage.clear();
     window.location.href = 'login.html';
 });
+
+// KHỞI TẠO QR KHI TRANG LOAD (NẾU ĐANG KHÓA)
+if (!encryptKey) {
+    initQRCode();
+}
