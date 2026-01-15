@@ -6,9 +6,9 @@
     <title>Két Sắt An Toàn (Zero-Knowledge)</title>
     
     <link rel="stylesheet" href="css/style.css">
-    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
 
     <style>
         /* Tùy chỉnh riêng cho trang Vault để chia cột */
@@ -79,67 +79,32 @@
     </style>
 </head>
 <body>
-
+<body>
     <div id="lockScreen" class="container">
         <h1>🔒 Két Sắt</h1>
-        <p style="text-align: center; color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem;">
-            Nhập Master Key hoặc quét QR
-        </p>
-
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            <input type="password" id="inpMasterKey" placeholder="Nhập Master Key...">
-            <button id="btnUnlock">MỞ KHÓA</button>
-        </div>
-
-        <div style="display: flex; align-items: center; margin: 20px 0; color: #475569;">
-            <hr style="flex: 1; border-color: #334155;">
-            <span style="padding: 0 10px; font-size: 0.8rem;">HOẶC</span>
-            <hr style="flex: 1; border-color: #334155;">
-        </div>
-
+        <p style="text-align: center; color: #64748b;">Quét QR để mở khóa & Thêm dữ liệu</p>
         <div class="qr-box">
-            <div id="qrcode" class="qr">
-                </div>
-            <div id="qrStatus" class="status ok">Đang khởi tạo QR...</div>
+            <canvas id="qrcode" width="250" height="250" style="background: white; display: block;"></canvas>
+    
+            <div id="qrStatus" class="status ok">Đang chờ tạo QR...</div>
         </div>
-
-        <div class="timer">Phiên làm việc tự động khóa sau 30s</div>
     </div>
 
-
     <div id="appContent" class="dashboard-container">
-        
-        <div class="panel" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin: 0; text-align: left;">🔐 My Vault</h2>
-            <button id="btnLogout" class="secondary" style="width: auto; padding: 8px 16px;">Đăng xuất</button>
+        <div class="panel d-flex justify-content-between align-items-center mb-3">
+            <h2>🔐 Dữ liệu</h2>
+            <button id="btnLogout" class="secondary">Đăng xuất</button>
         </div>
 
-        <div class="dashboard-layout">
-            <div class="panel">
-                <h3>Thêm Mới</h3>
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
-                    <div>
-                        <label>Tên gợi nhớ (Domain)</label>
-                        <input type="text" id="inpDomain" placeholder="Ví dụ: Facebook">
-                    </div>
-                    <div>
-                        <label>Mật khẩu</label>
-                        <input type="password" id="newData" placeholder="Nhập mật khẩu...">
-                    </div>
-                    <button id="btnAdd" style="margin-top: 10px;">Mã hóa & Lưu</button>
-                </div>
-            </div>
-
-            <div class="panel">
+        <div class="panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>Danh sách mật khẩu</h3>
-                
-                <ul id="dataList">
-                    </ul>
+                <span class="badge bg-primary">📱 Dùng điện thoại để thêm</span>
             </div>
+            <ul id="dataList"></ul>
         </div>
     </div>
 
     <script type="module" src="js/vault.js"></script>
-
 </body>
 </html>
