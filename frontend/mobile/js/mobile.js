@@ -1,4 +1,4 @@
-import { deriveSharedKey, encryptData, importKeyJWK, deriveKeys } from '../../desktop/js/crypto.js';
+import { deriveSharedKey, encryptData, importKeyJWK, deriveKeys, base64ToHex } from '../../desktop/js/crypto.js';
 
 // Vì bạn dùng cáp USB giả lập, ta dùng localhost
 const SOCKET_URL = "https://192.168.1.128:3000"; 
@@ -14,36 +14,28 @@ let tempMasterKey = null;     // Lưu tạm Master Key để chờ Salt
 // 1. TỰ ĐỘNG CHẠY KHI TRANG WEB VỪA MỞ
 // ==========================================
 window.onload = () => {
-    // Kiểm tra xem URL có chứa ID phiên không
-    // Link dạng: .../mobile.html#sid=bec34...
     if (window.location.hash.includes("#sid=")) {
-        try {
-            // Lấy ID từ URL
-            activeSessionId = window.location.hash.split("#sid=")[1];
-            console.log("🔗 Đã lấy được Session ID:", activeSessionId);
-            
-            // Xóa hash trên thanh địa chỉ cho đẹp & bảo mật
-            history.replaceState(null, null, ' '); 
+        activeSessionId = window.location.hash.split("#sid=")[1];
+        history.replaceState(null, null, ' '); 
 
+        // Cập nhật giao diện chờ
+        document.getElementById('btnLoginMobile').innerText = "Đang chờ Desktop...";
+        document.getElementById('btnLoginMobile').disabled = true;
+        
+        // 👇 QUAN TRỌNG: Nếu socket đã nối rồi thì gửi luôn, chưa thì đợi
+        if (socket.connected) {
             socket.emit("mobile_joined", activeSessionId);
-
-            // Hiện thông báo chờ
-            document.getElementById('btnLoginMobile').innerText = "Đang chờ Desktop phản hồi...";
-            document.getElementById('btnLoginMobile').disabled = true;
-
-        } catch (e) {
-            alert("Đường dẫn không hợp lệ!");
         }
-    } else {
-        // Nếu không có ID
-        alert("Vui lòng quét mã QR trên máy tính để truy cập!");
-        document.body.innerHTML = `
-            <div style="text-align:center; color:white; margin-top:50px;">
-                <h3>⛔ Lỗi truy cập</h3>
-                <p>Thiếu Session ID. Hãy quét lại QR trên Desktop.</p>
-            </div>`;
     }
 };
+
+// 👇 SỰ KIỆN KHI SOCKET KẾT NỐI THÀNH CÔNG
+socket.on("connect", () => {
+    // Nếu đã có ID phiên thì gửi báo danh ngay
+    if (activeSessionId) {
+        socket.emit("mobile_joined", activeSessionId);
+    }
+});
 
 // ==========================================
 // 2. LẮNG NGHE SỰ KIỆN TỪ SOCKET
@@ -51,7 +43,6 @@ window.onload = () => {
 
 // A. Nhận Public Key từ Desktop (Ngay sau khi báo danh)
 socket.on("receive_desktop_pub", (key) => {
-    console.log("🔑 Đã nhận Public Key từ Desktop!");
     desktopPubKey = key;
     
     // Mở khóa nút bấm
@@ -62,18 +53,31 @@ socket.on("receive_desktop_pub", (key) => {
 });
 
 // B. Nhận Salt từ Desktop (Sau khi gửi Master Key thành công)
-socket.on("receive_salt", async (salt) => {
-    console.log("🧂 Đã nhận Salt:", salt);
-    
+socket.on("receive_salt", async (data) => {
+    const saltRaw = data.salt || data;
+    console.log("📥 Đã nhận Salt từ Desktop:", saltRaw);
+
     if (tempMasterKey) {
-        // Tính toán Key mã hóa dữ liệu (Derive Key)
-        // Mobile tự tính -> Desktop không bao giờ biết Master Key gốc
-        const keys = await deriveKeys(tempMasterKey, salt);
-        mobileEncryptKey = keys.encryptKey;
-        
-        // Xóa Key gốc khỏi RAM ngay lập tức để bảo mật
-        tempMasterKey = null; 
-        console.log("✅ Đã tạo Mobile Encrypt Key thành công!");
+        try {
+            // 👇 QUAN TRỌNG: Chuyển Salt sang Hex trước khi tạo Key
+            // Điều này đảm bảo Key trên Mobile khớp 100% với Desktop
+            const saltHex = base64ToHex(saltRaw);
+            
+            const keys = await deriveKeys(tempMasterKey, saltHex);
+            mobileEncryptKey = keys.encryptKey;
+            
+            console.log("✅ Đã tạo mobileEncryptKey thành công!");
+            tempMasterKey = null; 
+
+            // Mở khóa nút bấm
+            const btn = document.getElementById('btnMobileAdd');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerText = "Lưu Mật Khẩu";
+            }
+        } catch (e) {
+            console.error("Lỗi tạo khóa:", e);
+        }
     }
 });
 

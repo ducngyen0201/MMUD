@@ -9,37 +9,41 @@
 <body>
 
     <div class="container">
-        <h1>Secure Vault</h1>
-        <h2>Đăng Ký</h2>
+        <div class="qr-card auth-card">
+            <h1 style="color: var(--primary-color); margin-bottom: 5px;">Secure Vault</h1>
+            <h2 style="font-size: 1.2rem; color: var(--text-muted); margin-top: 0;">Đăng ký tài khoản</h2>
 
-        <form id="registerForm">
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label for="username">Tên đăng nhập</label>
-                <input type="text" id="username" placeholder="Chọn tên đăng nhập..." required autocomplete="username">
+            <form id="registerForm" style="margin-top: 25px;">
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <input type="text" id="username" class="form-control" placeholder="Chọn tên đăng nhập..." required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Mật khẩu đăng nhập</label>
+                    <input type="password" id="password" class="form-control" placeholder="Mật khẩu (để login)" required autocomplete="new-password">
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="form-group">
+                    <label for="masterKey" class="text-highlight">Master Key (Chìa khóa két)</label>
+                    <input type="password" id="masterKey" class="form-control" placeholder="Nhập khóa bí mật..." required autocomplete="new-password">
+                </div>
+
+                <div class="status error" style="text-align: left; margin: 15px 0; font-size: 0.85rem;">
+                    ⚠️ <strong>LƯU Ý:</strong> Server KHÔNG lưu Master Key. Nếu quên, bạn sẽ mất vĩnh viễn dữ liệu.
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Hoàn tất Đăng ký</button>
+            </form>
+
+            <div class="auth-footer">
+                <a href="login.html" style="text-decoration: none;">
+                    <button class="btn btn-outline w-100">Quay lại Đăng nhập</button>
+                </a>
             </div>
-
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label for="password">Mật khẩu đăng nhập</label>
-                <input type="password" id="password" placeholder="Mật khẩu (để login)" required autocomplete="new-password">
-            </div>
-
-            <hr style="border: 0; border-top: 1px solid #1e293b; margin: 10px 0;">
-
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label for="masterKey" style="color: #38bdf8; font-weight: bold;">Master Key (Chìa khóa két)</label>
-                <input type="password" id="masterKey" placeholder="Nhập khóa bí mật..." required autocomplete="new-password">
-            </div>
-
-            <div class="status error" style="text-align: left; margin-top: 0;">
-                ⚠️ <strong>LƯU Ý:</strong> Server KHÔNG lưu Master Key. Nếu quên, bạn sẽ mất vĩnh viễn dữ liệu.
-            </div>
-
-            <button type="submit" style="margin-top: 10px;">Hoàn tất Đăng ký</button>
-        </form>
-
-        <a href="login.html" style="text-decoration: none; display: block; margin-top: 16px;">
-            <button class="secondary" style="width: 100%;">Quay lại Đăng nhập</button>
-        </a>
+        </div>
     </div>
 
     <script type="module" src="js/register.js"></script>

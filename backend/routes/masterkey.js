@@ -41,7 +41,6 @@ router.post("/verify", auth, async (req, res) => {
 
     if (rows.length === 0) return res.status(401).json({ error: "No challenge found" });
     const record = rows[0];
-    console.log("🔍 [SERVER] AuthKey trong DB:", record.auth_key_verifier);
 
     if (new Date() > new Date(record.expires_at)) {
       return res.status(401).json({ error: "Challenge expired" });
@@ -57,7 +56,6 @@ router.post("/verify", auth, async (req, res) => {
       .update(serverNonceBase64)         // Message (Nonce Base64)
       .digest("hex");                    // Output Hex
 
-    console.log(`Server Calc: ${calculatedHmac} | Client Sent: ${hmac}`);
 
     if (calculatedHmac !== hmac) {
        return res.status(403).json({ error: "Sai Master Key! (Chữ ký không khớp)" });

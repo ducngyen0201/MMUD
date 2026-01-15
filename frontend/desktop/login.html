@@ -5,36 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập - Secure Vault</title>
     <link rel="stylesheet" href="css/style.css">
-</head>
+    </head>
 <body>
 
     <div class="container">
-        <h1>Secure Vault</h1>
-        <h2>Đăng Nhập</h2>
+        <div class="qr-card auth-card">
+            <h1 style="color: var(--primary-color); margin-bottom: 5px;">Secure Vault</h1>
+            <h2 style="font-size: 1.2rem; color: var(--text-muted); margin-top: 0;">Đăng nhập hệ thống</h2>
 
-        <form id="loginForm">
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label for="username">Tên đăng nhập</label>
-                <input type="text" id="username" placeholder="Nhập username..." required autocomplete="username">
+            <form id="loginForm" style="margin-top: 30px;">
+                <div class="form-group">
+                    <label for="username">Tên đăng nhập</label>
+                    <input type="text" id="username" class="form-control" placeholder="Nhập username..." required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Mật khẩu</label>
+                    <input type="password" id="password" class="form-control" placeholder="Nhập password..." required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">
+                    Truy cập Két sắt
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Chưa có tài khoản?</p>
+                <a href="register.html">
+                    <button class="btn btn-secondary w-100">Tạo tài khoản mới</button>
+                </a>
             </div>
-
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-                <label for="password">Mật khẩu</label>
-                <input type="password" id="password" placeholder="Nhập password..." required autocomplete="current-password">
-            </div>
-
-            <button type="submit" style="margin-top: 10px;">
-                Truy cập Két sắt
-            </button>
-        </form>
-
-        <div style="margin-top: 20px; text-align: center;">
-            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 10px;">
-                Chưa có tài khoản?
-            </p>
-            <a href="register.html" style="text-decoration: none;">
-                <button class="secondary" style="width: 100%;">Tạo tài khoản mới</button>
-            </a>
         </div>
     </div>
 
