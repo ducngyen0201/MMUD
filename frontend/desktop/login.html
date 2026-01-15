@@ -1,32 +1,30 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>VaultChat – Login</title>
-  <link rel="stylesheet" href="../desktop/css/style.css" />
+    <meta charset="UTF-8">
+    <title>Đăng nhập - Secure Vault</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>🔐 VaultChat</h1>
-    <h2>Đăng nhập</h2>
+    <div class="split-container">
+        <div class="login-box">
+            <h2>Đăng nhập</h2>
+            <form id="loginForm">
+                <input type="text" id="username" placeholder="Tên đăng nhập" required>
+                <input type="password" id="password" placeholder="Mật khẩu" required>
+                <button type="submit">Đăng nhập</button>
+            </form>
+            <p>Chưa có tài khoản? <a href="register.html">Đăng ký</a></p>
+        </div>
 
-    <form id="loginForm">
-      <label>Username</label>
-      <input id="username" required />
-
-      <label>Password</label>
-      <input id="password" type="password" required />
-
-      <button type="submit">Đăng nhập</button>
-      <button type="button" class="secondary"
-        onclick="location.href='register.html'">
-        Đăng ký
-      </button>
-    </form>
-
-    <div id="status" class="status"></div>
-  </div>
-
-  <script src="js/login.js"></script>
+        <div class="qr-box">
+            <h3>Hoặc quét mã QR</h3>
+            <div id="qrcode"></div>
+            <p id="qrStatus">Đang kết nối WebSocket...</p>
+        </div>
+    </div>
+    <script type="module" src="js/login.js"></script>
 </body>
 </html>

@@ -14,7 +14,8 @@ CREATE TABLE encrypted_data (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id BIGINT NOT NULL,
 
-    ciphertext BLOB NOT NULL,
+    domain BLOB NOT NULL,
+    password BLOB NOT NULL,
     iv VARBINARY(12) NOT NULL,
     auth_tag VARBINARY(16) NOT NULL,
 

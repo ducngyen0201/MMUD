@@ -1,35 +1,26 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>VaultChat – Register</title>
-  <link rel="stylesheet" href="../desktop/css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký - Secure Vault</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>🧠 VaultChat</h1>
-    <h2>Đăng ký tài khoản</h2>
-
-    <form id="registerForm">
-      <label>Username</label>
-      <input id="username" required />
-
-      <label>Password</label>
-      <input id="password" type="password" required />
-
-      <label>MasterKey (không thể khôi phục)</label>
-      <input id="masterKey" type="password" required />
-
-      <button type="submit">Tạo tài khoản</button>
-      <button type="button" class="secondary"
-        onclick="location.href='login.html'">
-        Quay lại đăng nhập
-      </button>
-    </form>
-
-    <div id="status" class="status"></div>
-  </div>
-
-  <script src="js/register.js"></script>
+    <div class="container">
+        <h2>Đăng ký tài khoản</h2>
+        <form id="registerForm">
+            <input type="text" id="username" placeholder="Tên đăng nhập" required>
+            <input type="password" id="password" placeholder="Mật khẩu đăng nhập (Login)" required>
+            <hr>
+            <label>Master Key (Dùng để mã hóa dữ liệu - QUAN TRỌNG):</label>
+            <input type="password" id="masterKey" placeholder="Nhập Master Key" required>
+            <small>Lưu ý: Server không lưu Master Key. Nếu quên, bạn sẽ mất toàn bộ dữ liệu.</small>
+            
+            <button type="submit">Đăng ký</button>
+        </form>
+        <p>Đã có tài khoản? <a href="login.html">Đăng nhập ngay</a></p>
+    </div>
+    <script type="module" src="js/register.js"></script>
 </body>
 </html>

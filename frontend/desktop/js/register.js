@@ -1,106 +1,52 @@
-const form = document.getElementById("registerForm");
-const statusEl = document.getElementById("status");
+import { API_URL } from './config.js';
+import { generateSalt, deriveKeys, buf2hex, buf2base64, hex2buf } from './crypto.js';
 
-/* ===== CRYPTO HELPERS ===== */
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value; // Pass đăng nhập
+    const masterKey = document.getElementById('masterKey').value; // Master Key
 
-async function deriveKeys(masterKey, salt) {
-  const enc = new TextEncoder();
+    try {
+        // 1. Tạo Salt ngẫu nhiên (dạng Hex để dùng cho hàm deriveKeys cũ)
+        const saltHex = generateSalt(); 
+        
+        // 2. Tính toán Auth Key từ MasterKey
+        const { authVerifier } = await deriveKeys(masterKey, saltHex);
 
-  const baseKey = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(masterKey),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
+        // 3. Chuẩn bị dữ liệu gửi lên Backend
+        // Backend yêu cầu kdfSalt là Base64
+        const saltBuffer = hex2buf(saltHex);
+        const saltBase64 = buf2base64(saltBuffer);
 
-  const rootBits = await crypto.subtle.deriveBits(
-    {
-      name: "PBKDF2",
-      salt: enc.encode(salt),
-      iterations: 100000,
-      hash: "SHA-256"
-    },
-    baseKey,
-    256
-  );
+        const payload = {
+            username: username,
+            // LƯU Ý: Backend tên là 'passwordHash' nhưng ta gửi password thô
+            // Lý do: Backend code bạn gửi lưu trực tiếp biến này. 
+            // Nếu gửi hash, argon2.verify lúc login sẽ lỗi format.
+            passwordHash: password, 
+            authKeyHash: authVerifier,
+            kdfSalt: saltBase64
+        };
 
-  return {
-    authKey: await hkdf(rootBits, "auth"),
-    encryptKey: await hkdf(rootBits, "encrypt")
-  };
-}
+        // 4. Gửi Request
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-async function hkdf(keyBits, info) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBits,
-    "HKDF",
-    false,
-    ["deriveBits"]
-  );
+        const data = await response.json();
 
-  const bits = await crypto.subtle.deriveBits(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: new Uint8Array([]),
-      info: new TextEncoder().encode(info)
-    },
-    key,
-    256
-  );
-
-  return bits;
-}
-
-async function sha256(buf) {
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  return btoa(String.fromCharCode(...new Uint8Array(hash)));
-}
-
-/* ===== REGISTER FLOW ===== */
-
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const username = document.getElementById("username").value.trim();
-  const password = document.getElementById("password").value;
-  const masterKey = document.getElementById("masterKey").value;
-
-  statusEl.textContent = "⏳ Đang tạo tài khoản...";
-
-  try {
-    // 1. Tạo salt cho MasterKey
-    const salt = crypto.randomUUID();
-
-    // 2. Derive AuthKey / EncryptKey
-    const { authKey, encryptKey } = await deriveKeys(masterKey, salt);
-
-    // 3. Hash AuthKey → gửi server
-    const authKeyHash = await sha256(authKey);
-
-    // (EncryptKey KHÔNG gửi, chỉ lưu client khi cần)
-
-    // 4. Gửi dữ liệu lên server
-    const res = await fetch("/api/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username,
-        password,       // ✅ plaintext
-        kdf_salt: salt,
-        auth_key_hash: authKeyHash
-      })
-    });
-
-    if (!res.ok) throw new Error("Register failed");
-
-    statusEl.textContent = "✅ Đăng ký thành công";
-    form.reset();
-
-  } catch (err) {
-    console.error(err);
-    statusEl.textContent = "❌ Đăng ký thất bại";
-  }
+        if (response.ok) {
+            alert('Đăng ký thành công!');
+            window.location.href = 'login.html';
+        } else {
+            alert('Lỗi: ' + (data.error || 'Đăng ký thất bại'));
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Lỗi xử lý client-side');
+    }
 });

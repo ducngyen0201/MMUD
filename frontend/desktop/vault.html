@@ -1,33 +1,39 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <title>VaultChat – Vault</title>
-  <link rel="stylesheet" href="../desktop/css/style.css" />
+    <meta charset="UTF-8">
+    <title>Secure Data Vault</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <div id="lockScreen" class="overlay">
+        <div class="lock-box">
+            <h2>🔐 Vault Locked</h2>
+            <p>Nhập Master Key để giải mã dữ liệu</p>
+            <input type="password" id="inpMasterKey" placeholder="Master Key">
+            <button id="btnUnlock">Mở khóa</button>
+            <p class="hint">(Sẽ tự khóa lại sau 30s không hoạt động)</p>
+        </div>
+    </div>
 
-  <!-- LOCK SCREEN -->
-  <div class="container" id="lock-screen">
-    <h1>🔐 Vault Locked</h1>
-    <p>Yêu cầu xác thực để mở dữ liệu</p>
+    <div id="appContent" style="display:none;">
+        <div class="header">
+            <h1>Dữ liệu của tôi</h1>
+            <button id="btnLogout">Đăng xuất</button>
+        </div>
+        
+        <div class="mb-3">
+          <input type="text" id="inpDomain" class="form-control mb-2" placeholder="Tên trang web (VD: Facebook)">
+          <div class="input-group">
+          <input type="text" id="newData" class="form-control" placeholder="Mật khẩu / Nội dung mật">
+          <button class="btn btn-primary" id="btnAdd">Lưu</button>
+          </div>
+        </div>
 
-    <button onclick="unlockWithMasterKey()">🔑 MasterKey</button>
-    <button class="secondary" onclick="unlockWithWebAuthn()">🖐 WebAuthn</button>
+        <ul id="dataList">
+            </ul>
+    </div>
 
-    <div id="auth-status" class="status"></div>
-  </div>
-
-  <!-- VAULT -->
-  <div class="container" id="vault">
-    <h1>📦 Secure Vault</h1>
-    <div class="timer" id="timer">⏳ 30s</div>
-
-    <button onclick="addItem()">➕ Thêm dữ liệu</button>
-
-    <ul id="data-list"></ul>
-  </div>
-
-  <script src="js/vault.js"></script>
+    <script type="module" src="js/vault.js"></script>
 </body>
 </html>

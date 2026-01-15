@@ -1,33 +1,37 @@
+// backend/app.js
 require("dotenv").config();
+const cors = require('cors');
 const express = require("express");
-
-const authRoutes = require("./routes/auth");
-
-const app = express();
-app.use(express.json());
-const masterkeyRoutes = require("./routes/masterkey");
-app.use("/api", masterkeyRoutes);
-
-const dataRoutes = require("./routes/data");
-app.use("/api", dataRoutes);
-
-app.use("/api", authRoutes);
-
 const http = require("http");
 const { initWSS } = require("./ws");
 
+// Import Routes
+const authRoutes = require("./routes/auth");
+const dataRoutes = require("./routes/data"); 
+const masterkeyRoutes = require("./routes/masterkey");
+
+const app = express();
 const server = http.createServer(app);
-initWSS(server);
 
-server.listen(3000, () => {
-  console.log("Server + WS running");
-});
+// --- 1. Middleware ---
+app.use(cors()); // Cho phép mọi nguồn (bao gồm Socket.io ban đầu)
+app.use(express.json());
 
+// --- 2. Routes ---
+app.use("/api/auth", authRoutes);
+app.use("/api/data", dataRoutes);
+app.use("/api/masterkey", masterkeyRoutes);
 
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({ status: "Server is ALIVE!" });
 });
 
-app.listen(3000, () => {
-  console.log("Server running at http://localhost:3000");
+// --- 3. Kích hoạt WebSocket ---
+initWSS(server); // <--- Truyền server vào hàm init của socket.io
+
+// --- 4. Chạy Server (Dùng biến server, KHÔNG dùng app) ---
+const PORT = 3000;
+server.listen(PORT, () => {
+  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`✅ WebSocket ready at /socket.io/`); 
 });

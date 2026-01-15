@@ -1,34 +1,37 @@
-const WebSocket = require("ws");
+const { Server } = require("socket.io");
 
-const clients = new Map(); // sessionID -> ws
+let io;
 
-function initWSS(server) {
-  const wss = new WebSocket.Server({ server });
+exports.initWSS = (httpServer) => {
+  // Khởi tạo Socket.io gắn vào HttpServer
+  io = new Server(httpServer, {
+    cors: {
+      origin: "*", // Cho phép Frontend (127.0.0.1:5500) kết nối
+      methods: ["GET", "POST"]
+    }
+  });
 
-  wss.on("connection", ws => {
-    ws.on("message", msg => {
-      const data = JSON.parse(msg);
+  io.on("connection", (socket) => {
+    console.log("🔌 New client connected:", socket.id);
 
-      if (data.type === "bind") {
-        clients.set(data.sessionId, ws);
-      }
+    // Xử lý các sự kiện socket tại đây
+    socket.on("disconnect", () => {
+      console.log("❌ Client disconnected:", socket.id);
     });
-
-    ws.on("close", () => {
-      for (const [sid, socket] of clients) {
-        if (socket === ws) clients.delete(sid);
-      }
+    
+    // Ví dụ: Mobile gửi yêu cầu login
+    socket.on('login-request', (data) => {
+        console.log("Received login request:", data);
     });
   });
-}
+  
+  console.log("Initialize Socket.io success");
+};
 
-function notify(sessionId, payload) {
-  const ws = clients.get(sessionId);
-  if (ws) {
-    ws.send(JSON.stringify(payload));
+// Hàm tiện ích để file khác (như auth.js) có thể dùng để bắn thông báo
+exports.getIO = () => {
+  if (!io) {
+    throw new Error("Socket.io not initialized!");
   }
-}
-
-
-
-module.exports = { initWSS, notify };
+  return io;
+};
