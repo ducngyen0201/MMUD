@@ -1,7 +1,7 @@
 import { deriveSharedKey, encryptData, importKeyJWK, deriveKeys, base64ToHex } from '../../desktop/js/crypto.js';
 
 // Vì bạn dùng cáp USB giả lập, ta dùng localhost
-const SOCKET_URL = "https://192.168.1.128:3000"; 
+const SOCKET_URL = "https://192.168.1.118:3000";
 const socket = io(SOCKET_URL);
 
 // Các biến trạng thái
@@ -16,12 +16,12 @@ let tempMasterKey = null;     // Lưu tạm Master Key để chờ Salt
 window.onload = () => {
     if (window.location.hash.includes("#sid=")) {
         activeSessionId = window.location.hash.split("#sid=")[1];
-        history.replaceState(null, null, ' '); 
+        history.replaceState(null, null, ' ');
 
         // Cập nhật giao diện chờ
         document.getElementById('btnLoginMobile').innerText = "Đang chờ Desktop...";
         document.getElementById('btnLoginMobile').disabled = true;
-        
+
         // 👇 QUAN TRỌNG: Nếu socket đã nối rồi thì gửi luôn, chưa thì đợi
         if (socket.connected) {
             socket.emit("mobile_joined", activeSessionId);
@@ -44,7 +44,7 @@ socket.on("connect", () => {
 // A. Nhận Public Key từ Desktop (Ngay sau khi báo danh)
 socket.on("receive_desktop_pub", (key) => {
     desktopPubKey = key;
-    
+
     // Mở khóa nút bấm
     const btn = document.getElementById('btnLoginMobile');
     btn.innerText = "KẾT NỐI NGAY";
@@ -57,17 +57,18 @@ socket.on("receive_salt", async (data) => {
     const saltRaw = data.salt || data;
     console.log("📥 Đã nhận Salt từ Desktop:", saltRaw);
 
+
     if (tempMasterKey) {
         try {
             // 👇 QUAN TRỌNG: Chuyển Salt sang Hex trước khi tạo Key
             // Điều này đảm bảo Key trên Mobile khớp 100% với Desktop
             const saltHex = base64ToHex(saltRaw);
-            
+
             const keys = await deriveKeys(tempMasterKey, saltHex);
             mobileEncryptKey = keys.encryptKey;
-            
+
             console.log("✅ Đã tạo mobileEncryptKey thành công!");
-            tempMasterKey = null; 
+            tempMasterKey = null;
 
             // Mở khóa nút bấm
             const btn = document.getElementById('btnMobileAdd');
@@ -86,7 +87,7 @@ socket.on("receive_salt", async (data) => {
 // ==========================================
 document.getElementById('btnLoginMobile').addEventListener('click', async () => {
     const masterKey = document.getElementById('inpMobileKey').value;
-    
+
     // Validate
     if (!masterKey) return alert("Vui lòng nhập Master Key!");
     if (!activeSessionId) return alert("Lỗi phiên làm việc. Hãy quét lại QR.");
@@ -97,17 +98,17 @@ document.getElementById('btnLoginMobile').addEventListener('click', async () => 
         const mobileKeyPair = await window.crypto.subtle.generateKey(
             { name: "ECDH", namedCurve: "P-256" }, true, ["deriveKey"]
         );
-        
+
         // 2. Tính Shared Key (Khóa bí mật chung)
         const desktopKeyObj = await importKeyJWK(desktopPubKey);
         const sharedKey = await deriveSharedKey(mobileKeyPair.privateKey, desktopKeyObj);
-        
+
         // 3. Mã hóa Master Key bằng Shared Key
         const encryptedData = await encryptData(masterKey, sharedKey);
-        
+
         // 4. Xuất Public Key của Mobile để gửi đi
         const mobilePubJWK = await window.crypto.subtle.exportKey("jwk", mobileKeyPair.publicKey);
-        
+
         // 5. Gửi gói tin sang Desktop
         socket.emit("mobile_send_key", {
             sessionId: activeSessionId,
@@ -122,15 +123,57 @@ document.getElementById('btnLoginMobile').addEventListener('click', async () => 
         // 6. Lưu tạm Master Key (để lát nữa nhận Salt thì dùng)
         tempMasterKey = masterKey;
 
-        // 7. Chuyển màn hình
-        document.getElementById('screenLogin').classList.add('hidden');
-        document.getElementById('screenControl').classList.remove('hidden');
-
     } catch (e) {
         console.error(e);
         alert("Lỗi kết nối: " + e.message);
     }
 });
+
+
+//--------------------------------- Thêm ----------------------------------------------------------------------
+
+// ✅ Desktop xác nhận MasterKey đúng
+socket.on("unlock_success", () => {
+    document.getElementById('screenLogin').classList.add('hidden');
+    document.getElementById('screenControl').classList.remove('hidden');
+});
+
+// ❌ MasterKey sai
+socket.on("unlock_failed", () => {
+    alert("❌ Master Key không đúng. Vui lòng thử lại.");
+
+    tempMasterKey = null;
+
+    const btn = document.getElementById('btnLoginMobile');
+    btn.disabled = false;
+    btn.innerText = "KẾT NỐI NGAY";
+
+    document.getElementById('inpMobileKey').value = '';
+    document.getElementById('inpMobileKey').focus();
+});
+
+// Hết phiên 
+socket.on("session_expired", () => {
+    alert("🔒 Phiên bảo mật đã hết hạn. Vui lòng kết nối lại.");
+
+    // Reset state
+    mobileEncryptKey = null;
+    tempMasterKey = null;
+    activeSessionId = null;
+
+    // Reset UI
+    document.getElementById('screenControl').classList.add('hidden');
+    document.getElementById('screenLogin').classList.remove('hidden');
+
+    const btn = document.getElementById('btnLoginMobile');
+    btn.innerText = "QUÉT QR ĐỂ KẾT NỐI";
+    btn.disabled = true;
+
+    document.getElementById('inpMobileKey').value = '';
+});
+
+//-------------------------------------------------------------------------------------------------------
+
 
 // ==========================================
 // 4. XỬ LÝ NÚT "THÊM DỮ LIỆU"

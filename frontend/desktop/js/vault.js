@@ -1,23 +1,23 @@
 import { API_URL } from './config.js';
-import { 
+import {
     deriveKeys, encryptData, decryptData, calculateHMAC, base64ToHex,
-    generateECDHKeyPair, exportKeyJWK, deriveSharedKey, importKeyJWK 
+    generateECDHKeyPair, exportKeyJWK, deriveSharedKey, importKeyJWK
 } from './crypto.js';
 
 // ==========================================
 // 1. CẤU HÌNH & KHỞI TẠO
 // ==========================================
-const MY_IP = "192.168.1.128"; 
-const BASE_URL = `https://${MY_IP}:3000`; 
+const MY_IP = "192.168.1.118";
+const BASE_URL = `https://${MY_IP}:3000`;
 const MOBILE_PAGE_URL = `${BASE_URL}/frontend/mobile/mobile.html`;
 const socket = io(BASE_URL);
 
 // Biến trạng thái
-let token = localStorage.getItem('token'); 
-let unlockToken = null; 
-let encryptKey = null;  
-let autoLockTimer = null; 
-const SESSION_LIMIT_MS = 30000 * 10; 
+let token = localStorage.getItem('token');
+let unlockToken = null;
+let encryptKey = null;
+let autoLockTimer = null;
+const SESSION_LIMIT_MS = 30000;
 
 // Biến cho QR / Socket
 let ecdhKeyPair = null;
@@ -48,7 +48,7 @@ async function initQRCode() {
         currentSessionId = crypto.randomUUID();
         const fullLink = `${MOBILE_PAGE_URL}#sid=${currentSessionId}`;
         const canvasEl = document.getElementById('qrcode');
-        
+
         if (!canvasEl) return;
 
         new QRious({
@@ -62,6 +62,7 @@ async function initQRCode() {
 
         updateStatus("Đang chờ điện thoại quét...", "ok");
         forceJoinRoom();
+        console.log("full link: ", fullLink);
     } catch (e) {
         console.error("Lỗi QR:", e);
     }
@@ -101,7 +102,7 @@ socket.on("receive_key", async (encryptedPkg) => {
     try {
         const mobilePubKey = await importKeyJWK(encryptedPkg.mobilePub);
         const sharedKey = await deriveSharedKey(ecdhKeyPair.privateKey, mobilePubKey);
-        
+
         // Giải mã Master Key từ Mobile
         const decryptedMasterKey = await decryptData({
             iv: encryptedPkg.iv,
@@ -113,9 +114,9 @@ socket.on("receive_key", async (encryptedPkg) => {
             const success = await performUnlockHandshake(decryptedMasterKey);
             if (success) {
                 const salt = localStorage.getItem('salt');
-                socket.emit("desktop_send_salt", { 
-                    sessionId: currentSessionId, 
-                    salt: salt 
+                socket.emit("desktop_send_salt", {
+                    sessionId: currentSessionId,
+                    salt: salt
                 });
                 updateStatus("✅ Đã kết nối Mobile!", "ok");
             }
@@ -131,17 +132,17 @@ socket.on("receive_new_entry", async (entryData) => {
     try {
         await fetch(`${API_URL}/data`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${token}`, 
-                'x-unlock-token': unlockToken 
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'x-unlock-token': unlockToken
             },
             body: JSON.stringify({
                 domain: entryData.domain,
                 ciphertext: entryData.ciphertext,
                 iv: entryData.iv,
                 // 👇 Đảm bảo gửi auth_tag (viết thường) lên Server
-                authTag: entryData.auth_tag 
+                authTag: entryData.auth_tag
             })
         });
         loadData(); // Tải lại bảng để hiển thị ngay
@@ -157,11 +158,11 @@ async function performUnlockHandshake(masterKeyInput) {
 
     try {
         const saltHex = base64ToHex(storedSalt);
-        
+
         const res1 = await fetch(`${API_URL}/masterkey/challenge`, {
-             headers: { 'Authorization': `Bearer ${token}` }, method: 'POST'
+            headers: { 'Authorization': `Bearer ${token}` }, method: 'POST'
         });
-        const challengeData = await res1.json(); 
+        const challengeData = await res1.json();
 
         const keys = await deriveKeys(masterKeyInput, saltHex);
         const signature = await calculateHMAC(keys.authKey, challengeData.nonce);
@@ -176,20 +177,30 @@ async function performUnlockHandshake(masterKeyInput) {
         if (verifyData.status === "ok") {
             unlockToken = verifyData.unlockToken;
             encryptKey = keys.encryptKey;
-            
+
+            //-----------------------------------------------------------------------------
+            // 👇 BÁO MOBILE LÀ ĐÚNG MASTERKEY
+            socket.emit("unlock_success", { sessionId: currentSessionId });
+            //-----------------------------------------------------------------------------
+
             // Đồng bộ ID với vault.html (Sử dụng lockScreen và vaultUI)
             const lockEl = document.getElementById('lockScreen');
             const uiEl = document.getElementById('vaultUI');
-            
+
             if (lockEl) lockEl.classList.add('hidden');
             if (uiEl) uiEl.classList.remove('hidden');
-            
+
             loadData();
             startSessionTimer();
             return true;
         } else {
+            //-----------------------------------------------------------------------------
+            socket.emit("unlock_failed", { sessionId: currentSessionId });
+
+            //-----------------------------------------------------------------------------
+
             alert("Master Key không đúng!");
-            location.reload();
+            // location.reload();
             return false;
         }
     } catch (err) {
@@ -212,17 +223,28 @@ async function lockVault() {
     const tbody = document.getElementById('passTableBody');
     if (tbody) tbody.innerHTML = '';
 
+    //-------------------------------------------------------------------
+
+    // 🔔 Báo Mobile biết phiên đã hết
+    if (currentSessionId) {
+        socket.emit("session_expired", {
+            sessionId: currentSessionId
+        });
+    }
+
+    //------------------------------------------------------------------
+
     if (tokenToRevoke) {
-        fetch(`${API_URL}/masterkey/lock`, { 
+        fetch(`${API_URL}/masterkey/lock`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ unlockToken: tokenToRevoke })
-        }).catch(() => {});
+        }).catch(() => { });
     }
-    initQRCode(); 
+    initQRCode();
 }
 
 function startSessionTimer() {
@@ -239,12 +261,12 @@ async function loadData() {
 
     try {
         const res = await fetch(`${API_URL}/data`, {
-            headers: { 
-                'Authorization': `Bearer ${token}`, 
-                'x-unlock-token': unlockToken 
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'x-unlock-token': unlockToken
             }
         });
-        
+
         if (!res.ok) {
             if (res.status === 403) lockVault();
             return;
@@ -265,11 +287,11 @@ async function loadData() {
             try {
                 // GIẢI MÃ mật khẩu ngay lập tức bằng Master Key (encryptKey)
                 const plainPassword = await decryptData({
-                    iv: item.iv, 
-                    ciphertext: item.ciphertext || item.password, 
+                    iv: item.iv,
+                    ciphertext: item.ciphertext || item.password,
                     auth_tag: item.auth_tag || item.authTag
                 }, encryptKey);
-                
+
                 // Tạo dòng (row) mới cho bảng
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
@@ -328,12 +350,12 @@ async function loadData() {
 
                 tbody.appendChild(tr);
 
-            } catch (e) { 
+            } catch (e) {
                 console.error("Lỗi dòng:", item.domain, e);
                 // Nếu dòng này lỗi (do dữ liệu rác từ điện thoại), hiện thông báo lỗi tại dòng đó
                 const trError = document.createElement('tr');
                 trError.innerHTML = `
-                    <td>${index+1}</td>
+                    <td>${index + 1}</td>
                     <td>${item.domain}</td>
                     <td style="color:red; font-size:0.85rem">⚠️ Lỗi giải mã (Dữ liệu cũ)</td>
                     <td><button class="btn btn-sm btn-delete" onclick="deleteData(${item.id})">🗑️</button></td>
@@ -341,8 +363,8 @@ async function loadData() {
                 tbody.appendChild(trError);
             }
         }
-    } catch (e) { 
-        console.error("Lỗi hệ thống loadData:", e); 
+    } catch (e) {
+        console.error("Lỗi hệ thống loadData:", e);
     }
 }
 

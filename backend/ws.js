@@ -18,7 +18,7 @@ exports.initWSS = (httpServer) => {
     // 2. Mobile báo danh -> Báo cho Desktop
     socket.on("mobile_joined", (sid) => {
       socket.join(sid);
-      io.to(sid).emit("notify_mobile_connected"); 
+      io.to(sid).emit("notify_mobile_connected");
     });
 
     // 3. Desktop gửi Key Public
@@ -40,6 +40,25 @@ exports.initWSS = (httpServer) => {
     socket.on("mobile_add_entry", (data) => {
       io.to(data.sessionId).emit("receive_new_entry", data.entryData);
     });
+
+
+    // thêm 7,8,9----------------------------------
+
+    // 7. Desktop báo unlock thành công
+    socket.on("unlock_success", ({ sessionId }) => {
+      socket.to(sessionId).emit("unlock_success");
+    });
+
+    // 8. Desktop báo unlock thất bại
+    socket.on("unlock_failed", ({ sessionId }) => {
+      socket.to(sessionId).emit("unlock_failed");
+    });
+
+    // 9. Desktop báo hết phiên
+    socket.on("session_expired", ({ sessionId }) => {
+      socket.to(sessionId).emit("session_expired", { sessionId });
+    });
+
   });
 };
 

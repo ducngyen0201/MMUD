@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mobile Input</title>
-    
+
     <link rel="stylesheet" href="css/mobile.css">
-    
+
     <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
 </head>
+
 <body>
 
     <div id="screenLogin" class="mobile-card">
@@ -25,7 +27,7 @@
         <button id="btnLoginMobile" class="btn btn-success" disabled>
             Đang tìm máy tính...
         </button>
-        
+
         <p style="margin-top: 20px; font-size: 0.8rem; color: #6b7280;">
             Đảm bảo điện thoại và máy tính chung mạng Wifi
         </p>
@@ -52,7 +54,7 @@
         </button>
 
         <div style="margin-top: 20px; border-top: 1px solid #e5e7eb; padding-top: 15px;">
-             <p style="font-size: 0.8rem; color: #6b7280;">
+            <p style="font-size: 0.8rem; color: #6b7280;">
                 Mẹo: Bạn có thể nhập liên tục nhiều mật khẩu.
             </p>
         </div>
@@ -60,4 +62,10 @@
 
     <script type="module" src="js/mobile.js"></script>
 </body>
+
 </html>
+
+
+
+<!-- - mobile: hết 30s => redirect
+       mobile: nhập sai masterkey => báo lỗi -->
